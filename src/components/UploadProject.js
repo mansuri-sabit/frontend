@@ -15,11 +15,7 @@ import {
   Settings,
   Eye,
   ChevronRight,
-  ChevronLeft,
-  Star,
-  Rocket,
-  Brain,
-  Magic
+  ChevronLeft
 } from 'lucide-react';
 import axios from 'axios';
 import '../styles/UploadProject.css';
@@ -43,657 +39,766 @@ const UploadProject = ({ onProjectCreated }) => {
     welcome_message: 'Hello! How can I help you today?'
   });
 
-  // ... (keeping all existing functions unchanged for brevity)
+  const onDrop = useCallback((acceptedFiles, rejectedFiles) => {
+    if (rejectedFiles.length > 0) {
+      setError('Some files were rejected. Please upload PDF files only (max 10MB each).');
+      return;
+    }
+
+    const newFiles = acceptedFiles.map(file => ({
+      id: Date.now() + Math.random(),
+      file,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      progress: 0,
+      status: 'ready',
+      uploadSpeed: 0,
+      timeRemaining: 0
+    }));
+
+    setUploadedFiles(prev => [...prev, ...newFiles]);
+    setError('');
+  }, []);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'application/pdf': ['.pdf']
+    },
+    maxSize: 10 * 1024 * 1024,
+    multiple: true
+  });
+
+  const removeFile = (fileId) => {
+    setUploadedFiles(prev => prev.filter(file => file.id !== fileId));
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const formatTime = (seconds) => {
+    if (seconds < 60) return `${Math.round(seconds)}s`;
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.round(seconds % 60);
+    return `${minutes}m ${remainingSeconds}s`;
+  };
+
+  const formatSpeed = (bytesPerSecond) => {
+    if (bytesPerSecond < 1024) return `${Math.round(bytesPerSecond)} B/s`;
+    if (bytesPerSecond < 1024 * 1024) return `${Math.round(bytesPerSecond / 1024)} KB/s`;
+    return `${Math.round(bytesPerSecond / (1024 * 1024))} MB/s`;
+  };
+
+  // ✅ PUBLIC ENDPOINT: No authentication required
+  const uploadFilesToProject = async (projectId) => {
+    console.log('🔍 [DEBUG] Starting public file upload for project:', projectId);
+    
+    try {
+      setUploadedFiles(prev => 
+        prev.map(file => ({ 
+          ...file, 
+          status: 'uploading', 
+          progress: 0,
+          uploadSpeed: 0,
+          timeRemaining: 0
+        }))
+      );
+
+      for (const fileObj of uploadedFiles) {
+        console.log(`🔍 [DEBUG] Uploading file: ${fileObj.name}`);
+        
+        const formData = new FormData();
+        formData.append('files', fileObj.file);
+        
+        // ✅ PUBLIC ENDPOINT: No authentication
+        const uploadUrl = `${process.env.REACT_APP_API_URL}/public/projects/${projectId}/upload-pdf`;
+        
+        let uploadStartTime = Date.now();
+        let lastLoaded = 0;
+        
+        try {
+          const response = await axios({
+            method: 'POST',
+            url: uploadUrl,
+            data: formData,
+            headers: {
+              // ❌ No Authorization header needed
+              'Content-Type': 'multipart/form-data'
+            },
+            timeout: 120000,
+            onUploadProgress: (progressEvent) => {
+              const { loaded, total } = progressEvent;
+              const progress = Math.round((loaded * 100) / total);
+              
+              const currentTime = Date.now();
+              const timeElapsed = (currentTime - uploadStartTime) / 1000;
+              const bytesUploaded = loaded - lastLoaded;
+              const uploadSpeed = timeElapsed > 0 ? bytesUploaded / timeElapsed : 0;
+              
+              const remainingBytes = total - loaded;
+              const timeRemaining = uploadSpeed > 0 ? remainingBytes / uploadSpeed : 0;
+              
+              setUploadedFiles(prev => 
+                prev.map(file => 
+                  file.id === fileObj.id 
+                    ? { 
+                        ...file, 
+                        progress,
+                        uploadSpeed,
+                        timeRemaining,
+                        bytesLoaded: loaded,
+                        bytesTotal: total
+                      }
+                    : file
+                )
+              );
+              
+              lastLoaded = loaded;
+            }
+          });
+          
+          console.log('✅ Public upload successful:', response.data);
+          
+          setUploadedFiles(prev => 
+            prev.map(file => 
+              file.id === fileObj.id 
+                ? { 
+                    ...file, 
+                    status: 'completed', 
+                    progress: 100,
+                    uploadSpeed: 0,
+                    timeRemaining: 0
+                  }
+                : file
+            )
+          );
+          
+        } catch (uploadError) {
+          console.error('❌ Public upload failed:', uploadError);
+          
+          setUploadedFiles(prev => 
+            prev.map(file => 
+              file.id === fileObj.id 
+                ? { 
+                    ...file, 
+                    status: 'error', 
+                    progress: 0,
+                    uploadSpeed: 0,
+                    timeRemaining: 0
+                  }
+                : file
+            )
+          );
+          
+          throw new Error(`Upload failed for ${fileObj.name}: ${uploadError.message}`);
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      console.log('✅ All files uploaded successfully via public endpoint');
+      
+    } catch (error) {
+      console.error('❌ Public upload process failed:', error);
+      
+      setUploadedFiles(prev => 
+        prev.map(file => 
+          file.status === 'uploading' 
+            ? { ...file, status: 'error', progress: 0 }
+            : file
+        )
+      );
+      
+      throw error;
+    }
+  };
+
+  const handleSubmit = async () => {
+    setLoading(true);
+    setError('');
+
+    try {
+      console.log('🔍 [DEBUG] Creating project with public upload:', projectData);
+
+      const response = await axios({
+        method: 'POST',
+        url: `${process.env.REACT_APP_API_URL}/api/admin/projects`,
+        data: projectData,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        withCredentials: true,
+        timeout: 30000
+      });
+
+      console.log('✅ Project created successfully:', response.data);
+
+      if (uploadedFiles.length > 0 && response.data.project && response.data.project.id) {
+        try {
+          await uploadFilesToProject(response.data.project.id);
+          setSuccess(`Project "${projectData.name}" created successfully with ${uploadedFiles.length} files uploaded!`);
+        } catch (uploadError) {
+          console.error('❌ File upload failed:', uploadError);
+          setSuccess(`Project "${projectData.name}" created successfully, but file upload failed: ${uploadError.message}`);
+        }
+      } else {
+        setSuccess(`Project "${projectData.name}" created successfully!`);
+      }
+      
+      setTimeout(() => {
+        onProjectCreated && onProjectCreated(response.data.project);
+      }, 2000);
+
+    } catch (error) {
+      console.error('❌ Project creation failed:', error);
+      
+      if (error.response) {
+        setError(error.response.data?.error || `Server error: ${error.response.status}`);
+      } else if (error.request) {
+        setError('Network error: Unable to reach server');
+      } else {
+        setError(error.message || 'Failed to create project');
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const validateStep = (step) => {
+    switch (step) {
+      case 1:
+        if (!projectData.name.trim()) {
+          setError('Project name is required');
+          return false;
+        }
+        if (projectData.name.length < 3) {
+          setError('Project name must be at least 3 characters long');
+          return false;
+        }
+        break;
+      case 2:
+        if (uploadedFiles.length === 0) {
+          setError('Please upload at least one PDF file');
+          return false;
+        }
+        break;
+      case 3:
+        if (!projectData.gemini_api_key.trim()) {
+          setError('Gemini API key is required');
+          return false;
+        }
+        if (projectData.gemini_api_key.length < 20) {
+          setError('Please enter a valid Gemini API key');
+          return false;
+        }
+        break;
+      default:
+        break;
+    }
+    setError('');
+    return true;
+  };
+
+  const nextStep = () => {
+    if (validateStep(currentStep)) {
+      if (currentStep < 4) {
+        setCurrentStep(currentStep + 1);
+      } else {
+        handleSubmit();
+      }
+    }
+  };
+
+  const prevStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1);
+      setError('');
+    }
+  };
+
+  const handleInputChange = (field, value) => {
+    setProjectData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
 
   const stepIcons = [
-    { icon: Brain, label: 'Project Setup', desc: 'Define your AI project', color: '#6366f1' },
-    { icon: Upload, label: 'Knowledge Base', desc: 'Upload training data', color: '#8b5cf6' },
-    { icon: Magic, label: 'AI Configuration', desc: 'Customize intelligence', color: '#ec4899' },
-    { icon: Rocket, label: 'Launch Ready', desc: 'Deploy your bot', color: '#06b6d4' }
+    { icon: Database, label: 'Project Info', desc: 'Basic details' },
+    { icon: Upload, label: 'Upload Files', desc: 'Training documents' },
+    { icon: Settings, label: 'Configuration', desc: 'AI settings' },
+    { icon: Eye, label: 'Review', desc: 'Final check' }
   ];
 
   return (
     <div className="upload-project-wrapper">
-      {/* Background Elements */}
-      <div className="bg-decoration">
-        <div className="floating-orb orb-1"></div>
-        <div className="floating-orb orb-2"></div>
-        <div className="floating-orb orb-3"></div>
-        <div className="grid-pattern"></div>
-      </div>
-
       <div className="upload-project-container">
-        {/* Enhanced Header */}
+        {/* ✅ CREATIVE HEADER */}
         <div className="upload-header">
-          <div className="header-badge">
-            <Star size={16} />
-            <span>AI Project Builder</span>
+          <div className="header-icon-wrapper">
+            <Sparkles className="header-sparkle" />
+            <Zap className="header-icon" />
+            <Sparkles className="header-sparkle" />
           </div>
-          
-          <div className="header-content">
-            <div className="header-icon-group">
-              <div className="main-icon-wrapper">
-                <Brain className="main-icon" />
-                <div className="icon-glow"></div>
-              </div>
-              <div className="floating-icons">
-                <Sparkles className="float-icon icon-1" />
-                <Zap className="float-icon icon-2" />
-                <Magic className="float-icon icon-3" />
-              </div>
-            </div>
-            
-            <h1 className="header-title">
-              Create Your AI Assistant
-              <span className="header-subtitle">
-                Transform documents into intelligent conversations
-              </span>
-            </h1>
-          </div>
-
-          <div className="progress-section">
-            <div className="progress-track">
+          <h1 className="header-title">
+            Create AI Project
+            <span className="header-subtitle">Build your intelligent chatbot</span>
+          </h1>
+          <div className="header-progress">
+            <div className="progress-line">
               <div 
                 className="progress-fill" 
                 style={{ width: `${(currentStep / 4) * 100}%` }}
-              >
-                <div className="progress-glow"></div>
-              </div>
+              />
             </div>
-            <div className="progress-info">
-              <span className="step-counter">{currentStep} / 4</span>
-              <span className="step-name">{stepIcons[currentStep - 1]?.label}</span>
-            </div>
+            <span className="progress-text">Step {currentStep} of 4</span>
           </div>
         </div>
 
-        {/* Enhanced Progress Steps */}
+        {/* ✅ CREATIVE PROGRESS STEPS */}
         <div className="progress-steps">
           {stepIcons.map((step, index) => {
             const StepIcon = step.icon;
             const stepNumber = index + 1;
-            const isActive = currentStep === stepNumber;
+            const isActive = currentStep >= stepNumber;
             const isCompleted = currentStep > stepNumber;
-            const isPending = currentStep < stepNumber;
             
             return (
               <div
                 key={stepNumber}
-                className={`step-item ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''} ${isPending ? 'pending' : ''}`}
+                className={`step ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
               >
-                <div className="step-connector">
-                  <div className="connector-line"></div>
-                </div>
-                
-                <div className="step-circle" style={{ '--step-color': step.color }}>
-                  <div className="circle-inner">
+                <div className="step-connector" />
+                <div className="step-circle">
+                  <div className="step-icon-wrapper">
                     {isCompleted ? (
                       <Check size={20} className="step-check" />
                     ) : (
                       <StepIcon size={20} className="step-icon" />
                     )}
                   </div>
-                  {isActive && <div className="pulse-ring"></div>}
                 </div>
-                
-                <div className="step-details">
-                  <h4 className="step-title">{step.label}</h4>
-                  <p className="step-description">{step.desc}</p>
+                <div className="step-content">
+                  <span className="step-label">{step.label}</span>
+                  <span className="step-desc">{step.desc}</span>
                 </div>
               </div>
             );
           })}
         </div>
 
-        {/* Enhanced Messages */}
+        {/* ✅ CREATIVE MESSAGES */}
         {error && (
-          <div className="notification error-notification">
-            <div className="notification-icon">
-              <AlertCircle size={20} />
-            </div>
-            <div className="notification-content">
-              <h4>Oops! Something went wrong</h4>
-              <p>{error}</p>
-            </div>
-            <button onClick={() => setError('')} className="notification-close">
+          <div className="message error-message">
+            <AlertCircle size={20} />
+            <span>{error}</span>
+            <button onClick={() => setError('')} className="message-close">
               <X size={16} />
             </button>
           </div>
         )}
 
         {success && (
-          <div className="notification success-notification">
-            <div className="notification-icon">
-              <Check size={20} />
-            </div>
-            <div className="notification-content">
-              <h4>Success!</h4>
-              <p>{success}</p>
-            </div>
-            <div className="success-sparkles">
-              <Sparkles className="sparkle-1" />
-              <Sparkles className="sparkle-2" />
-            </div>
+          <div className="message success-message">
+            <Check size={20} />
+            <span>{success}</span>
+            <Sparkles size={16} className="success-sparkle" />
           </div>
         )}
 
-        {/* Enhanced Step Content */}
-        <div className="step-content-wrapper">
-          <div className="content-card">
-            {/* Step 1: Enhanced Project Information */}
-            {currentStep === 1 && (
-              <div className="form-step project-info-step">
-                <div className="step-header">
-                  <div className="header-icon">
-                    <Brain size={24} />
-                  </div>
-                  <div className="header-text">
-                    <h3>Project Foundation</h3>
-                    <p>Let's start by defining your AI assistant's identity and purpose</p>
-                  </div>
+        {/* ✅ STEP CONTENT */}
+        <div className="step-content">
+          {/* Step 1: Project Information */}
+          {currentStep === 1 && (
+            <div className="form-step">
+              <div className="step-header">
+                <Database className="step-header-icon" />
+                <h3>Project Information</h3>
+                <p>Tell us about your AI chatbot project</p>
+              </div>
+              
+              <div className="form-grid">
+                <div className="form-group">
+                  <label>
+                    <Zap size={16} />
+                    Project Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={projectData.name}
+                    onChange={(e) => handleInputChange('name', e.target.value)}
+                    placeholder="Enter your project name"
+                    className="form-input"
+                    required
+                  />
                 </div>
                 
-                <div className="form-layout">
-                  <div className="input-group featured">
-                    <label className="input-label">
-                      <Zap size={16} />
-                      <span>Project Name</span>
-                      <span className="required">*</span>
-                    </label>
-                    <div className="input-wrapper">
-                      <input
-                        type="text"
-                        value={projectData.name}
-                        onChange={(e) => handleInputChange('name', e.target.value)}
-                        placeholder="e.g., Customer Support Bot, Knowledge Assistant..."
-                        className="enhanced-input"
-                        required
-                      />
-                      <div className="input-glow"></div>
+                <div className="form-group">
+                  <label>
+                    <FileText size={16} />
+                    Category
+                  </label>
+                  <select
+                    value={projectData.category}
+                    onChange={(e) => handleInputChange('category', e.target.value)}
+                    className="form-select"
+                  >
+                    <option value="">Select a category</option>
+                    <option value="customer-support">🎧 Customer Support</option>
+                    <option value="education">📚 Education</option>
+                    <option value="healthcare">🏥 Healthcare</option>
+                    <option value="ecommerce">🛒 E-commerce</option>
+                    <option value="finance">💰 Finance</option>
+                    <option value="other">🔧 Other</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="form-group full-width">
+                <label>
+                  <FileText size={16} />
+                  Description
+                </label>
+                <textarea
+                  value={projectData.description}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  placeholder="Describe your project and its purpose..."
+                  rows={4}
+                  className="form-textarea"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: File Upload */}
+          {currentStep === 2 && (
+            <div className="form-step">
+              <div className="step-header">
+                <Upload className="step-header-icon" />
+                <h3>Upload Training Documents</h3>
+                <p>Upload PDF documents to train your AI chatbot</p>
+              </div>
+              
+              <div 
+                {...getRootProps()} 
+                className={`dropzone ${isDragActive ? 'active' : ''}`}
+              >
+                <input {...getInputProps()} />
+                <div className="dropzone-content">
+                  <div className="dropzone-icon-wrapper">
+                    <Upload className="dropzone-icon" />
+                    <div className="dropzone-sparkles">
+                      <Sparkles className="sparkle-1" />
+                      <Sparkles className="sparkle-2" />
+                      <Sparkles className="sparkle-3" />
                     </div>
                   </div>
-                  
-                  <div className="input-group">
-                    <label className="input-label">
-                      <Star size={16} />
-                      <span>Category</span>
-                    </label>
-                    <div className="select-wrapper">
-                      <select
-                        value={projectData.category}
-                        onChange={(e) => handleInputChange('category', e.target.value)}
-                        className="enhanced-select"
-                      >
-                        <option value="">Choose your domain</option>
-                        <option value="customer-support">🎧 Customer Support</option>
-                        <option value="education">📚 Education & Training</option>
-                        <option value="healthcare">🏥 Healthcare Assistant</option>
-                        <option value="ecommerce">🛒 E-commerce Helper</option>
-                        <option value="finance">💰 Financial Advisor</option>
-                        <option value="hr">👥 HR Assistant</option>
-                        <option value="legal">⚖️ Legal Consultant</option>
-                        <option value="other">🔧 Custom Solution</option>
-                      </select>
-                    </div>
+                  <div className="dropzone-text">
+                    {isDragActive ? (
+                      <span className="drop-active">Drop your PDF files here!</span>
+                    ) : (
+                      <>
+                        <span className="drop-main">Drag & drop PDF files here</span>
+                        <span className="drop-sub">or click to browse</span>
+                      </>
+                    )}
                   </div>
-                  
-                  <div className="input-group full-width">
-                    <label className="input-label">
-                      <FileText size={16} />
-                      <span>Project Vision</span>
-                    </label>
-                    <div className="textarea-wrapper">
-                      <textarea
-                        value={projectData.description}
-                        onChange={(e) => handleInputChange('description', e.target.value)}
-                        placeholder="Describe what you want your AI assistant to accomplish. What problems will it solve? Who will use it?"
-                        rows={4}
-                        className="enhanced-textarea"
-                      />
-                      <div className="char-counter">
-                        {projectData.description.length} / 500
-                      </div>
-                    </div>
+                  <div className="dropzone-info">
+                    <Shield size={16} />
+                    <span>PDF files only • Max 10MB each • Secure upload</span>
                   </div>
                 </div>
               </div>
-            )}
 
-            {/* Step 2: Enhanced File Upload */}
-            {currentStep === 2 && (
-              <div className="form-step upload-step">
-                <div className="step-header">
-                  <div className="header-icon">
-                    <Upload size={24} />
-                  </div>
-                  <div className="header-text">
-                    <h3>Knowledge Base</h3>
-                    <p>Upload documents to train your AI assistant's knowledge</p>
-                  </div>
-                </div>
-                
-                <div 
-                  {...getRootProps()} 
-                  className={`enhanced-dropzone ${isDragActive ? 'drag-active' : ''}`}
-                >
-                  <input {...getInputProps()} />
-                  <div className="dropzone-visual">
-                    <div className="upload-icon-container">
-                      <Upload className="upload-icon" />
-                      <div className="upload-rings">
-                        <div className="ring ring-1"></div>
-                        <div className="ring ring-2"></div>
-                        <div className="ring ring-3"></div>
-                      </div>
-                    </div>
-                    
-                    <div className="dropzone-content">
-                      {isDragActive ? (
-                        <div className="drop-active-state">
-                          <h4>Perfect! Drop your files now</h4>
-                          <p>Release to add them to your knowledge base</p>
-                        </div>
-                      ) : (
-                        <div className="drop-default-state">
-                          <h4>Drag & drop your PDF documents</h4>
-                          <p>or <span className="browse-link">browse files</span> from your computer</p>
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="upload-specs">
-                      <div className="spec-item">
-                        <Shield size={14} />
-                        <span>Secure & Private</span>
-                      </div>
-                      <div className="spec-item">
-                        <FileText size={14} />
-                        <span>PDF Only</span>
-                      </div>
-                      <div className="spec-item">
-                        <Clock size={14} />
-                        <span>Max 10MB each</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Enhanced File Preview */}
-                {uploadedFiles.length > 0 && (
-                  <div className="files-section">
-                    <div className="files-header">
-                      <h4>
-                        <Database size={20} />
-                        Knowledge Documents ({uploadedFiles.length})
-                      </h4>
-                      <div className="total-size">
-                        Total: {formatFileSize(uploadedFiles.reduce((acc, file) => acc + file.size, 0))}
-                      </div>
-                    </div>
-                    
-                    <div className="files-grid">
-                      {uploadedFiles.map(file => (
-                        <div key={file.id} className={`file-card ${file.status}`}>
-                          <div className="file-preview">
-                            <div className="file-icon-wrapper">
-                              <FileText size={32} />
-                              <div className={`status-indicator ${file.status}`}>
-                                {file.status === 'completed' && <Check size={12} />}
-                                {file.status === 'error' && <X size={12} />}
-                                {file.status === 'uploading' && <Loader className="spinner" size={12} />}
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="file-info">
-                            <h5 className="file-name" title={file.name}>
-                              {file.name}
-                            </h5>
-                            <p className="file-size">{formatFileSize(file.size)}</p>
-                            
-                            {file.status === 'uploading' && (
-                              <div className="upload-progress">
-                                <div className="progress-bar">
-                                  <div 
-                                    className="progress-fill" 
-                                    style={{ width: `${file.progress}%` }}
-                                  />
-                                </div>
-                                <div className="progress-stats">
-                                  <span>{file.progress}%</span>
-                                  {file.uploadSpeed > 0 && (
-                                    <span>{formatSpeed(file.uploadSpeed)}</span>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-                            
-                            <div className="file-status">
-                              {file.status === 'completed' && (
-                                <span className="status-badge success">
-                                  <Check size={12} />
-                                  Ready
-                                </span>
-                              )}
-                              {file.status === 'error' && (
-                                <span className="status-badge error">
-                                  <AlertCircle size={12} />
-                                  Failed
-                                </span>
-                              )}
-                              {file.status === 'ready' && (
-                                <span className="status-badge pending">
-                                  <Clock size={12} />
-                                  Queued
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          
-                          <button 
-                            onClick={() => removeFile(file.id)}
-                            className="remove-file"
-                            disabled={file.status === 'uploading'}
-                          >
-                            <X size={16} />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Step 3: Enhanced Configuration */}
-            {currentStep === 3 && (
-              <div className="form-step config-step">
-                <div className="step-header">
-                  <div className="header-icon">
-                    <Magic size={24} />
-                  </div>
-                  <div className="header-text">
-                    <h3>AI Intelligence Setup</h3>
-                    <p>Configure your assistant's capabilities and behavior</p>
-                  </div>
-                </div>
-                
-                <div className="config-sections">
-                  <div className="config-card primary">
-                    <div className="card-header">
-                      <Shield size={20} />
-                      <h4>API Configuration</h4>
-                      <p>Connect your AI engine</p>
-                    </div>
-                    
-                    <div className="card-content">
-                      <div className="input-group">
-                        <label className="input-label">
-                          <span>Gemini API Key</span>
-                          <span className="required">*</span>
-                        </label>
-                        <div className="input-wrapper secure">
-                          <input
-                            type="password"
-                            value={projectData.gemini_api_key}
-                            onChange={(e) => handleInputChange('gemini_api_key', e.target.value)}
-                            placeholder="Enter your Gemini API key"
-                            className="enhanced-input"
-                            required
-                          />
-                          <div className="security-badge">
-                            <Shield size={14} />
-                            <span>Encrypted</span>
-                          </div>
-                        </div>
-                        <small className="input-help">
-                          🔒 Your API key is encrypted and stored securely
-                        </small>
-                      </div>
-                      
-                      <div className="input-group">
-                        <label className="input-label">
-                          <span>AI Model</span>
-                        </label>
-                        <div className="model-selector">
-                          {[
-                            { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash', desc: 'Fast & Efficient', icon: '⚡', recommended: true },
-                            { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro', desc: 'Advanced Reasoning', icon: '🚀' },
-                            { value: 'gemini-pro', label: 'Gemini Pro', desc: 'Balanced Performance', icon: '💎' }
-                          ].map(model => (
-                            <div 
-                              key={model.value}
-                              className={`model-option ${projectData.gemini_model === model.value ? 'selected' : ''}`}
-                              onClick={() => handleInputChange('gemini_model', model.value)}
-                            >
-                              <div className="model-icon">{model.icon}</div>
-                              <div className="model-info">
-                                <h5>{model.label}</h5>
-                                <p>{model.desc}</p>
-                              </div>
-                              {model.recommended && (
-                                <div className="recommended-badge">
-                                  <Star size={12} />
-                                  Recommended
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
+              {/* ✅ CREATIVE FILE PREVIEW */}
+              {uploadedFiles.length > 0 && (
+                <div className="file-preview">
+                  <div className="file-preview-header">
+                    <h4>
+                      <FileText size={20} />
+                      Files Ready ({uploadedFiles.length})
+                    </h4>
                   </div>
                   
-                  <div className="config-card">
-                    <div className="card-header">
-                      <Zap size={20} />
-                      <h4>Usage Limits</h4>
-                      <p>Control your AI usage</p>
-                    </div>
-                    
-                    <div className="card-content">
-                      <div className="limits-grid">
-                        <div className="limit-group">
-                          <label>Daily Requests</label>
-                          <select
-                            value={projectData.gemini_daily_limit}
-                            onChange={(e) => handleInputChange('gemini_daily_limit', parseInt(e.target.value))}
-                            className="enhanced-select"
-                          >
-                            <option value={100}>100 requests</option>
-                            <option value={500}>500 requests</option>
-                            <option value={1000}>1,000 requests</option>
-                            <option value={2000}>2,000 requests</option>
-                            <option value={5000}>5,000 requests</option>
-                          </select>
+                  <div className="file-list">
+                    {uploadedFiles.map(file => (
+                      <div key={file.id} className={`file-item ${file.status}`}>
+                        <div className="file-icon">
+                          <FileText size={24} />
                         </div>
                         
-                        <div className="limit-group">
-                          <label>Monthly Requests</label>
-                          <select
-                            value={projectData.gemini_monthly_limit}
-                            onChange={(e) => handleInputChange('gemini_monthly_limit', parseInt(e.target.value))}
-                            className="enhanced-select"
-                          >
-                            <option value={3000}>3,000 requests</option>
-                            <option value={15000}>15,000 requests</option>
-                            <option value={30000}>30,000 requests</option>
-                            <option value={60000}>60,000 requests</option>
-                          </select>
+                        <div className="file-details">
+                          <div className="file-name">{file.name}</div>
+                          <div className="file-size">{formatFileSize(file.size)}</div>
+                          
+                          {/* ✅ CREATIVE PROGRESS BAR */}
+                          {file.status === 'uploading' && (
+                            <div className="progress-container">
+                              <div className="progress-bar">
+                                <div 
+                                  className="progress-fill" 
+                                  style={{ width: `${file.progress}%` }}
+                                />
+                                <div className="progress-text">{file.progress}%</div>
+                              </div>
+                              <div className="progress-details">
+                                <span className="upload-speed">
+                                  <Zap size={12} />
+                                  {file.uploadSpeed > 0 && formatSpeed(file.uploadSpeed)}
+                                </span>
+                                <span className="time-remaining">
+                                  <Clock size={12} />
+                                  {file.timeRemaining > 0 && formatTime(file.timeRemaining)}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Status Indicators */}
+                          <div className="file-status">
+                            {file.status === 'completed' && (
+                              <span className="status completed">
+                                <Check size={14} />
+                                Upload Complete
+                              </span>
+                            )}
+                            {file.status === 'error' && (
+                              <span className="status error">
+                                <X size={14} />
+                                Upload Failed
+                              </span>
+                            )}
+                            {file.status === 'ready' && (
+                              <span className="status ready">
+                                <Clock size={14} />
+                                Ready for Upload
+                              </span>
+                            )}
+                          </div>
                         </div>
+                        
+                        <button 
+                          onClick={() => removeFile(file.id)}
+                          className="remove-file-btn"
+                          disabled={file.status === 'uploading'}
+                        >
+                          <X size={16} />
+                        </button>
                       </div>
-                    </div>
-                  </div>
-                  
-                  <div className="config-card full-width">
-                    <div className="card-header">
-                      <Sparkles size={20} />
-                      <h4>Welcome Experience</h4>
-                      <p>First impression matters</p>
-                    </div>
-                    
-                    <div className="card-content">
-                      <div className="input-group">
-                        <label className="input-label">
-                          <span>Welcome Message</span>
-                        </label>
-                        <div className="textarea-wrapper">
-                          <textarea
-                            value={projectData.welcome_message}
-                            onChange={(e) => handleInputChange('welcome_message', e.target.value)}
-                            placeholder="Craft a warm welcome message that introduces your AI assistant..."
-                            rows={3}
-                            className="enhanced-textarea"
-                          />
-                        </div>
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
+          )}
 
-            {/* Step 4: Enhanced Review */}
-            {currentStep === 4 && (
-              <div className="form-step review-step">
-                <div className="step-header">
-                  <div className="header-icon">
-                    <Rocket size={24} />
+          {/* Step 3: Configuration */}
+          {currentStep === 3 && (
+            <div className="form-step">
+              <div className="step-header">
+                <Settings className="step-header-icon" />
+                <h3>AI Configuration</h3>
+                <p>Configure your AI chatbot settings</p>
+              </div>
+              
+              <div className="config-grid">
+                <div className="config-section">
+                  <h4>
+                    <Shield size={18} />
+                    API Configuration
+                  </h4>
+                  
+                  <div className="form-group">
+                    <label>Gemini API Key *</label>
+                    <input
+                      type="password"
+                      value={projectData.gemini_api_key}
+                      onChange={(e) => handleInputChange('gemini_api_key', e.target.value)}
+                      placeholder="Enter your Gemini API key"
+                      className="form-input"
+                      required
+                    />
+                    <small>🔒 Your API key will be encrypted and stored securely</small>
                   </div>
-                  <div className="header-text">
-                    <h3>Ready for Launch</h3>
-                    <p>Review your AI assistant configuration before deployment</p>
+                  
+                  <div className="form-group">
+                    <label>AI Model</label>
+                    <select
+                      value={projectData.gemini_model}
+                      onChange={(e) => handleInputChange('gemini_model', e.target.value)}
+                      className="form-select"
+                    >
+                      <option value="gemini-1.5-flash">⚡ Gemini 1.5 Flash (Recommended)</option>
+                      <option value="gemini-1.5-pro">🚀 Gemini 1.5 Pro</option>
+                      <option value="gemini-pro">💎 Gemini Pro</option>
+                    </select>
                   </div>
                 </div>
                 
-                <div className="review-layout">
-                  <div className="review-card">
-                    <div className="card-header">
-                      <Brain size={20} />
-                      <h4>Project Overview</h4>
-                    </div>
-                    <div className="review-items">
-                      <div className="review-item">
-                        <span className="item-label">Name</span>
-                        <span className="item-value">{projectData.name}</span>
-                      </div>
-                      <div className="review-item">
-                        <span className="item-label">Category</span>
-                        <span className="item-value">{projectData.category || 'Not specified'}</span>
-                      </div>
-                      <div className="review-item">
-                        <span className="item-label">Description</span>
-                        <span className="item-value">{projectData.description || 'No description provided'}</span>
-                      </div>
-                    </div>
+                <div className="config-section">
+                  <h4>
+                    <Zap size={18} />
+                    Usage Limits
+                  </h4>
+                  
+                  <div className="form-group">
+                    <label>Daily Usage Limit</label>
+                    <select
+                      value={projectData.gemini_daily_limit}
+                      onChange={(e) => handleInputChange('gemini_daily_limit', parseInt(e.target.value))}
+                      className="form-select"
+                    >
+                      <option value={100}>100 requests/day</option>
+                      <option value={500}>500 requests/day</option>
+                      <option value={1000}>1000 requests/day</option>
+                      <option value={2000}>2000 requests/day</option>
+                      <option value={5000}>5000 requests/day</option>
+                    </select>
                   </div>
                   
-                  <div className="review-card">
-                    <div className="card-header">
-                      <Database size={20} />
-                      <h4>Knowledge Base</h4>
-                    </div>
-                    <div className="review-items">
-                      <div className="review-item">
-                        <span className="item-label">Documents</span>
-                        <span className="item-value">{uploadedFiles.length} PDF files</span>
-                      </div>
-                      <div className="review-item">
-                        <span className="item-label">Total Size</span>
-                        <span className="item-value">
-                          {formatFileSize(uploadedFiles.reduce((acc, file) => acc + file.size, 0))}
-                        </span>
-                      </div>
-                    </div>
+                  <div className="form-group">
+                    <label>Monthly Usage Limit</label>
+                    <select
+                      value={projectData.gemini_monthly_limit}
+                      onChange={(e) => handleInputChange('gemini_monthly_limit', parseInt(e.target.value))}
+                      className="form-select"
+                    >
+                      <option value={3000}>3000 requests/month</option>
+                      <option value={15000}>15000 requests/month</option>
+                      <option value={30000}>30000 requests/month</option>
+                      <option value={60000}>60000 requests/month</option>
+                    </select>
                   </div>
-                  
-                  <div className="review-card">
-                    <div className="card-header">
-                      <Magic size={20} />
-                      <h4>AI Configuration</h4>
+                </div>
+              </div>
+              
+              <div className="form-group full-width">
+                <label>
+                  <Sparkles size={16} />
+                  Welcome Message
+                </label>
+                <textarea
+                  value={projectData.welcome_message}
+                  onChange={(e) => handleInputChange('welcome_message', e.target.value)}
+                  placeholder="Enter a welcome message for your chatbot..."
+                  rows={3}
+                  className="form-textarea"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Step 4: Review */}
+          {currentStep === 4 && (
+            <div className="form-step">
+              <div className="step-header">
+                <Eye className="step-header-icon" />
+                <h3>Review & Submit</h3>
+                <p>Review your project details before creating</p>
+              </div>
+              
+              <div className="review-grid">
+                <div className="review-section">
+                  <h4>
+                    <Database size={18} />
+                    Project Details
+                  </h4>
+                  <div className="review-items">
+                    <div className="review-item">
+                      <span className="label">Name:</span>
+                      <span className="value">{projectData.name}</span>
                     </div>
-                    <div className="review-items">
-                      <div className="review-item">
-                        <span className="item-label">Model</span>
-                        <span className="item-value">{projectData.gemini_model}</span>
-                      </div>
-                      <div className="review-item">
-                        <span className="item-label">Daily Limit</span>
-                        <span className="item-value">{projectData.gemini_daily_limit.toLocaleString()} requests</span>
-                      </div>
-                      <div className="review-item">
-                        <span className="item-label">Monthly Limit</span>
-                        <span className="item-value">{projectData.gemini_monthly_limit.toLocaleString()} requests</span>
-                      </div>
+                    <div className="review-item">
+                      <span className="label">Category:</span>
+                      <span className="value">{projectData.category || 'Not selected'}</span>
+                    </div>
+                    <div className="review-item">
+                      <span className="label">Description:</span>
+                      <span className="value">{projectData.description || 'Not provided'}</span>
                     </div>
                   </div>
                 </div>
                 
-                <div className="launch-preview">
-                  <div className="preview-header">
-                    <h4>Preview</h4>
-                    <p>How users will first interact with your AI assistant</p>
-                  </div>
-                  <div className="chat-preview">
-                    <div className="chat-message bot">
-                      <div className="message-avatar">
-                        <Brain size={16} />
-                      </div>
-                      <div className="message-content">
-                        {projectData.welcome_message}
-                      </div>
+                <div className="review-section">
+                  <h4>
+                    <Upload size={18} />
+                    Files & AI
+                  </h4>
+                  <div className="review-items">
+                    <div className="review-item">
+                      <span className="label">Files:</span>
+                      <span className="value">{uploadedFiles.length} PDF files</span>
+                    </div>
+                    <div className="review-item">
+                      <span className="label">AI Model:</span>
+                      <span className="value">{projectData.gemini_model}</span>
+                    </div>
+                    <div className="review-item">
+                      <span className="label">Daily Limit:</span>
+                      <span className="value">{projectData.gemini_daily_limit} requests</span>
+                    </div>
+                    <div className="review-item">
+                      <span className="label">Monthly Limit:</span>
+                      <span className="value">{projectData.gemini_monthly_limit} requests</span>
                     </div>
                   </div>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
-        {/* Enhanced Navigation */}
-        <div className="navigation-section">
-          <div className="nav-container">
-            <button 
-              onClick={prevStep}
-              disabled={currentStep === 1}
-              className="nav-button secondary"
-            >
-              <ChevronLeft size={20} />
-              <span>Previous</span>
-            </button>
-            
-            <div className="nav-progress">
+        {/* ✅ CREATIVE NAVIGATION */}
+        <div className="form-navigation">
+          <button 
+            onClick={prevStep}
+            disabled={currentStep === 1}
+            className="nav-btn prev"
+          >
+            <ChevronLeft size={20} />
+            Previous
+          </button>
+          
+          <div className="nav-center">
+            <div className="nav-dots">
               {[1, 2, 3, 4].map(step => (
                 <div 
                   key={step}
-                  className={`progress-dot ${currentStep >= step ? 'active' : ''}`}
+                  className={`nav-dot ${currentStep >= step ? 'active' : ''}`}
                 />
               ))}
             </div>
-            
-            <button 
-              onClick={nextStep}
-              disabled={loading}
-              className="nav-button primary"
-            >
-              {loading ? (
-                <>
-                  <Loader className="spinner" size={20} />
-                  <span>Creating...</span>
-                </>
-              ) : currentStep === 4 ? (
-                <>
-                  <Rocket size={20} />
-                  <span>Launch Project</span>
-                </>
-              ) : (
-                <>
-                  <span>Continue</span>
-                  <ChevronRight size={20} />
-                </>
-              )}
-            </button>
           </div>
+          
+          <button 
+            onClick={nextStep}
+            disabled={loading}
+            className="nav-btn next"
+          >
+            {loading ? (
+              <>
+                <Loader className="spinner" size={20} />
+                Creating...
+              </>
+            ) : currentStep === 4 ? (
+              <>
+                <Sparkles size={20} />
+                Create Project
+              </>
+            ) : (
+              <>
+                Next
+                <ChevronRight size={20} />
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>
