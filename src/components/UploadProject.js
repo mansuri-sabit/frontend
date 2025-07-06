@@ -1,6 +1,22 @@
 import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { Upload, FileText, X, Check, AlertCircle, Loader } from 'lucide-react';
+import { 
+  Upload, 
+  FileText, 
+  X, 
+  Check, 
+  AlertCircle, 
+  Loader, 
+  Sparkles,
+  Zap,
+  Shield,
+  Clock,
+  Database,
+  Settings,
+  Eye,
+  ChevronRight,
+  ChevronLeft
+} from 'lucide-react';
 import axios from 'axios';
 import '../styles/UploadProject.css';
 
@@ -36,7 +52,7 @@ const UploadProject = ({ onProjectCreated }) => {
       size: file.size,
       type: file.type,
       progress: 0,
-      status: 'ready', // ready, uploading, completed, error
+      status: 'ready',
       uploadSpeed: 0,
       timeRemaining: 0
     }));
@@ -50,7 +66,7 @@ const UploadProject = ({ onProjectCreated }) => {
     accept: {
       'application/pdf': ['.pdf']
     },
-    maxSize: 10 * 1024 * 1024, // 10MB
+    maxSize: 10 * 1024 * 1024,
     multiple: true
   });
 
@@ -79,12 +95,11 @@ const UploadProject = ({ onProjectCreated }) => {
     return `${Math.round(bytesPerSecond / (1024 * 1024))} MB/s`;
   };
 
-  // ✅ ENHANCED: Axios upload with detailed progress tracking
+  // ✅ PUBLIC ENDPOINT: No authentication required
   const uploadFilesToProject = async (projectId) => {
-    console.log('🔍 [DEBUG] Starting Axios file upload with progress tracking');
+    console.log('🔍 [DEBUG] Starting public file upload for project:', projectId);
     
     try {
-      // Update all files to uploading status
       setUploadedFiles(prev => 
         prev.map(file => ({ 
           ...file, 
@@ -95,17 +110,15 @@ const UploadProject = ({ onProjectCreated }) => {
         }))
       );
 
-      // Upload files sequentially to avoid overwhelming the server
       for (const fileObj of uploadedFiles) {
         console.log(`🔍 [DEBUG] Uploading file: ${fileObj.name}`);
         
         const formData = new FormData();
         formData.append('files', fileObj.file);
         
-        const uploadUrl = `${process.env.REACT_APP_API_URL}/admin/projects/${projectId}/upload-pdf`;
-        const token = localStorage.getItem('token');
+        // ✅ PUBLIC ENDPOINT: No authentication
+        const uploadUrl = `${process.env.REACT_APP_API_URL}/public/projects/${projectId}/upload-pdf`;
         
-        // Track upload start time for speed calculation
         let uploadStartTime = Date.now();
         let lastLoaded = 0;
         
@@ -115,30 +128,22 @@ const UploadProject = ({ onProjectCreated }) => {
             url: uploadUrl,
             data: formData,
             headers: {
-              'Authorization': `Bearer ${token}`,
+              // ❌ No Authorization header needed
               'Content-Type': 'multipart/form-data'
             },
-            timeout: 120000, // 2 minutes timeout
-            withCredentials: true,
-            
-            // ✅ ENHANCED: Detailed progress tracking with speed and time estimation
+            timeout: 120000,
             onUploadProgress: (progressEvent) => {
               const { loaded, total } = progressEvent;
               const progress = Math.round((loaded * 100) / total);
               
-              // Calculate upload speed
               const currentTime = Date.now();
-              const timeElapsed = (currentTime - uploadStartTime) / 1000; // in seconds
+              const timeElapsed = (currentTime - uploadStartTime) / 1000;
               const bytesUploaded = loaded - lastLoaded;
               const uploadSpeed = timeElapsed > 0 ? bytesUploaded / timeElapsed : 0;
               
-              // Calculate time remaining
               const remainingBytes = total - loaded;
               const timeRemaining = uploadSpeed > 0 ? remainingBytes / uploadSpeed : 0;
               
-              console.log(`📊 Upload progress for ${fileObj.name}: ${progress}% (${formatSpeed(uploadSpeed)})`);
-              
-              // Update file progress with detailed information
               setUploadedFiles(prev => 
                 prev.map(file => 
                   file.id === fileObj.id 
@@ -158,9 +163,8 @@ const UploadProject = ({ onProjectCreated }) => {
             }
           });
           
-          console.log('✅ Axios upload successful:', response.data);
+          console.log('✅ Public upload successful:', response.data);
           
-          // Update file status to completed
           setUploadedFiles(prev => 
             prev.map(file => 
               file.id === fileObj.id 
@@ -176,9 +180,8 @@ const UploadProject = ({ onProjectCreated }) => {
           );
           
         } catch (uploadError) {
-          console.error('❌ Axios upload failed:', uploadError);
+          console.error('❌ Public upload failed:', uploadError);
           
-          // Update file status to error
           setUploadedFiles(prev => 
             prev.map(file => 
               file.id === fileObj.id 
@@ -193,29 +196,17 @@ const UploadProject = ({ onProjectCreated }) => {
             )
           );
           
-          // Handle specific error types
-          if (uploadError.code === 'ECONNABORTED') {
-            throw new Error(`Upload timeout for ${fileObj.name}`);
-          } else if (uploadError.response) {
-            const errorMsg = uploadError.response.data?.error || uploadError.response.statusText;
-            throw new Error(`Upload failed for ${fileObj.name}: ${uploadError.response.status} - ${errorMsg}`);
-          } else if (uploadError.request) {
-            throw new Error(`Network error uploading ${fileObj.name}`);
-          } else {
-            throw new Error(`Upload error for ${fileObj.name}: ${uploadError.message}`);
-          }
+          throw new Error(`Upload failed for ${fileObj.name}: ${uploadError.message}`);
         }
         
-        // Small delay between uploads to prevent server overload
         await new Promise(resolve => setTimeout(resolve, 500));
       }
 
-      console.log('✅ All files uploaded successfully with Axios');
+      console.log('✅ All files uploaded successfully via public endpoint');
       
     } catch (error) {
-      console.error('❌ Axios upload process failed:', error);
+      console.error('❌ Public upload process failed:', error);
       
-      // Reset failed files to ready status
       setUploadedFiles(prev => 
         prev.map(file => 
           file.status === 'uploading' 
@@ -228,13 +219,12 @@ const UploadProject = ({ onProjectCreated }) => {
     }
   };
 
-  // Project creation with Axios
   const handleSubmit = async () => {
     setLoading(true);
     setError('');
 
     try {
-      console.log('🔍 [DEBUG] Creating project with Axios:', projectData);
+      console.log('🔍 [DEBUG] Creating project with public upload:', projectData);
 
       const response = await axios({
         method: 'POST',
@@ -250,7 +240,6 @@ const UploadProject = ({ onProjectCreated }) => {
 
       console.log('✅ Project created successfully:', response.data);
 
-      // Upload files if any
       if (uploadedFiles.length > 0 && response.data.project && response.data.project.id) {
         try {
           await uploadFilesToProject(response.data.project.id);
@@ -341,312 +330,476 @@ const UploadProject = ({ onProjectCreated }) => {
     }));
   };
 
+  const stepIcons = [
+    { icon: Database, label: 'Project Info', desc: 'Basic details' },
+    { icon: Upload, label: 'Upload Files', desc: 'Training documents' },
+    { icon: Settings, label: 'Configuration', desc: 'AI settings' },
+    { icon: Eye, label: 'Review', desc: 'Final check' }
+  ];
+
   return (
-    <div className="upload-project-container">
-      <div className="upload-header">
-        <h1>
-          <Upload className="header-icon" />
-          Create New Project
-        </h1>
-        <p>Set up your AI-powered chatbot project</p>
-      </div>
-
-      {/* Progress Steps */}
-      <div className="progress-steps">
-        {[1, 2, 3, 4].map(step => (
-          <div
-            key={step}
-            className={`step ${currentStep >= step ? 'active' : ''} ${currentStep > step ? 'completed' : ''}`}
-          >
-            <div className="step-number">
-              {currentStep > step ? <Check size={16} /> : step}
-            </div>
-            <span className="step-label">
-              {step === 1 && 'Project Info'}
-              {step === 2 && 'Upload Files'}
-              {step === 3 && 'Configuration'}
-              {step === 4 && 'Review'}
-            </span>
+    <div className="upload-project-wrapper">
+      <div className="upload-project-container">
+        {/* ✅ CREATIVE HEADER */}
+        <div className="upload-header">
+          <div className="header-icon-wrapper">
+            <Sparkles className="header-sparkle" />
+            <Zap className="header-icon" />
+            <Sparkles className="header-sparkle" />
           </div>
-        ))}
-      </div>
-
-      {/* Error/Success Messages */}
-      {error && (
-        <div className="message error-message">
-          <AlertCircle size={16} />
-          {error}
-        </div>
-      )}
-
-      {success && (
-        <div className="message success-message">
-          <Check size={16} />
-          {success}
-        </div>
-      )}
-
-      {/* Step Content */}
-      <div className="step-content">
-        {/* Step 1: Project Information */}
-        {currentStep === 1 && (
-          <div className="form-step">
-            <h3>Project Information</h3>
-            <div className="form-group">
-              <label>Project Name *</label>
-              <input
-                type="text"
-                value={projectData.name}
-                onChange={(e) => handleInputChange('name', e.target.value)}
-                placeholder="Enter your project name"
-                required
+          <h1 className="header-title">
+            Create AI Project
+            <span className="header-subtitle">Build your intelligent chatbot</span>
+          </h1>
+          <div className="header-progress">
+            <div className="progress-line">
+              <div 
+                className="progress-fill" 
+                style={{ width: `${(currentStep / 4) * 100}%` }}
               />
             </div>
-            <div className="form-group">
-              <label>Description</label>
-              <textarea
-                value={projectData.description}
-                onChange={(e) => handleInputChange('description', e.target.value)}
-                placeholder="Describe your project and its purpose"
-                rows={4}
-              />
-            </div>
-            <div className="form-group">
-              <label>Category</label>
-              <select
-                value={projectData.category}
-                onChange={(e) => handleInputChange('category', e.target.value)}
-              >
-                <option value="">Select a category</option>
-                <option value="customer-support">Customer Support</option>
-                <option value="education">Education</option>
-                <option value="healthcare">Healthcare</option>
-                <option value="ecommerce">E-commerce</option>
-                <option value="finance">Finance</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
+            <span className="progress-text">Step {currentStep} of 4</span>
           </div>
-        )}
+        </div>
 
-        {/* Step 2: File Upload with Enhanced Progress Bars */}
-        {currentStep === 2 && (
-          <div className="form-step">
-            <h3>Upload Training Documents</h3>
-            <p>Upload PDF documents to train your AI chatbot</p>
+        {/* ✅ CREATIVE PROGRESS STEPS */}
+        <div className="progress-steps">
+          {stepIcons.map((step, index) => {
+            const StepIcon = step.icon;
+            const stepNumber = index + 1;
+            const isActive = currentStep >= stepNumber;
+            const isCompleted = currentStep > stepNumber;
             
-            <div 
-              {...getRootProps()} 
-              className={`dropzone ${isDragActive ? 'active' : ''}`}
-            >
-              <input {...getInputProps()} />
-              <Upload className="dropzone-icon" />
-              <div className="dropzone-text">
-                {isDragActive ? 'Drop PDF files here' : 'Drag & drop PDF files here, or click to browse'}
-              </div>
-              <div className="dropzone-subtext">
-                Supports: PDF files only (Max 10MB each)
-              </div>
-            </div>
-
-            {/* ✅ ENHANCED: File Preview with Detailed Progress Bars */}
-            {uploadedFiles.length > 0 && (
-              <div className="file-preview">
-                <h4>Files Ready for Upload ({uploadedFiles.length})</h4>
-                {uploadedFiles.map(file => (
-                  <div key={file.id} className="file-item">
-                    <div className="file-info">
-                      <FileText className="file-icon" />
-                      <div className="file-details">
-                        <div className="file-name">{file.name}</div>
-                        <div className="file-size">{formatFileSize(file.size)}</div>
-                        
-                        {/* ✅ ENHANCED: Detailed Progress Bar */}
-                        {file.status === 'uploading' && (
-                          <div className="progress-container">
-                            <div className="progress-bar">
-                              <div 
-                                className="progress-fill" 
-                                style={{ width: `${file.progress}%` }}
-                              />
-                              <div className="progress-text">{file.progress}%</div>
-                            </div>
-                            <div className="progress-details">
-                              <span className="upload-speed">
-                                {file.uploadSpeed > 0 && formatSpeed(file.uploadSpeed)}
-                              </span>
-                              <span className="time-remaining">
-                                {file.timeRemaining > 0 && `${formatTime(file.timeRemaining)} remaining`}
-                              </span>
-                            </div>
-                            <div className="bytes-info">
-                              {file.bytesLoaded && file.bytesTotal && (
-                                <span>
-                                  {formatFileSize(file.bytesLoaded)} / {formatFileSize(file.bytesTotal)}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {/* Status Indicators */}
-                        {file.status === 'completed' && (
-                          <div className="file-status completed">
-                            <Check size={14} /> Upload Complete
-                          </div>
-                        )}
-                        {file.status === 'error' && (
-                          <div className="file-status error">
-                            <X size={14} /> Upload Failed
-                          </div>
-                        )}
-                        {file.status === 'ready' && (
-                          <div className="file-status ready">
-                            Ready for Upload
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <button 
-                      onClick={() => removeFile(file.id)}
-                      className="remove-file-btn"
-                      disabled={file.status === 'uploading'}
-                    >
-                      <X size={16} />
-                    </button>
+            return (
+              <div
+                key={stepNumber}
+                className={`step ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
+              >
+                <div className="step-connector" />
+                <div className="step-circle">
+                  <div className="step-icon-wrapper">
+                    {isCompleted ? (
+                      <Check size={20} className="step-check" />
+                    ) : (
+                      <StepIcon size={20} className="step-icon" />
+                    )}
                   </div>
-                ))}
+                </div>
+                <div className="step-content">
+                  <span className="step-label">{step.label}</span>
+                  <span className="step-desc">{step.desc}</span>
+                </div>
               </div>
-            )}
+            );
+          })}
+        </div>
+
+        {/* ✅ CREATIVE MESSAGES */}
+        {error && (
+          <div className="message error-message">
+            <AlertCircle size={20} />
+            <span>{error}</span>
+            <button onClick={() => setError('')} className="message-close">
+              <X size={16} />
+            </button>
           </div>
         )}
 
-        {/* Step 3: Configuration */}
-        {currentStep === 3 && (
-          <div className="form-step">
-            <h3>AI Configuration</h3>
-            <div className="form-group">
-              <label>Gemini API Key *</label>
-              <input
-                type="password"
-                value={projectData.gemini_api_key}
-                onChange={(e) => handleInputChange('gemini_api_key', e.target.value)}
-                placeholder="Enter your Gemini API key"
-                required
-              />
-              <small>Your API key will be encrypted and stored securely</small>
-            </div>
-            <div className="form-group">
-              <label>AI Model</label>
-              <select
-                value={projectData.gemini_model}
-                onChange={(e) => handleInputChange('gemini_model', e.target.value)}
-              >
-                <option value="gemini-1.5-flash">Gemini 1.5 Flash (Recommended)</option>
-                <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-                <option value="gemini-pro">Gemini Pro</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Daily Usage Limit</label>
-              <select
-                value={projectData.gemini_daily_limit}
-                onChange={(e) => handleInputChange('gemini_daily_limit', parseInt(e.target.value))}
-              >
-                <option value={100}>100 requests/day</option>
-                <option value={500}>500 requests/day</option>
-                <option value={1000}>1000 requests/day</option>
-                <option value={2000}>2000 requests/day</option>
-                <option value={5000}>5000 requests/day</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Monthly Usage Limit</label>
-              <select
-                value={projectData.gemini_monthly_limit}
-                onChange={(e) => handleInputChange('gemini_monthly_limit', parseInt(e.target.value))}
-              >
-                <option value={3000}>3000 requests/month</option>
-                <option value={15000}>15000 requests/month</option>
-                <option value={30000}>30000 requests/month</option>
-                <option value={60000}>60000 requests/month</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Welcome Message</label>
-              <textarea
-                value={projectData.welcome_message}
-                onChange={(e) => handleInputChange('welcome_message', e.target.value)}
-                placeholder="Enter a welcome message for your chatbot"
-                rows={3}
-              />
-            </div>
+        {success && (
+          <div className="message success-message">
+            <Check size={20} />
+            <span>{success}</span>
+            <Sparkles size={16} className="success-sparkle" />
           </div>
         )}
 
-        {/* Step 4: Review */}
-        {currentStep === 4 && (
-          <div className="form-step">
-            <h3>Review & Submit</h3>
-            <div className="review-summary">
-              <div className="summary-item">
-                <span className="label">Project Name:</span>
-                <span className="value">{projectData.name}</span>
+        {/* ✅ STEP CONTENT */}
+        <div className="step-content">
+          {/* Step 1: Project Information */}
+          {currentStep === 1 && (
+            <div className="form-step">
+              <div className="step-header">
+                <Database className="step-header-icon" />
+                <h3>Project Information</h3>
+                <p>Tell us about your AI chatbot project</p>
               </div>
-              <div className="summary-item">
-                <span className="label">Description:</span>
-                <span className="value">{projectData.description || 'Not provided'}</span>
+              
+              <div className="form-grid">
+                <div className="form-group">
+                  <label>
+                    <Zap size={16} />
+                    Project Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={projectData.name}
+                    onChange={(e) => handleInputChange('name', e.target.value)}
+                    placeholder="Enter your project name"
+                    className="form-input"
+                    required
+                  />
+                </div>
+                
+                <div className="form-group">
+                  <label>
+                    <FileText size={16} />
+                    Category
+                  </label>
+                  <select
+                    value={projectData.category}
+                    onChange={(e) => handleInputChange('category', e.target.value)}
+                    className="form-select"
+                  >
+                    <option value="">Select a category</option>
+                    <option value="customer-support">🎧 Customer Support</option>
+                    <option value="education">📚 Education</option>
+                    <option value="healthcare">🏥 Healthcare</option>
+                    <option value="ecommerce">🛒 E-commerce</option>
+                    <option value="finance">💰 Finance</option>
+                    <option value="other">🔧 Other</option>
+                  </select>
+                </div>
               </div>
-              <div className="summary-item">
-                <span className="label">Category:</span>
-                <span className="value">{projectData.category || 'Not selected'}</span>
-              </div>
-              <div className="summary-item">
-                <span className="label">Files to Upload:</span>
-                <span className="value">{uploadedFiles.length} PDF files</span>
-              </div>
-              <div className="summary-item">
-                <span className="label">AI Model:</span>
-                <span className="value">{projectData.gemini_model}</span>
-              </div>
-              <div className="summary-item">
-                <span className="label">Daily Limit:</span>
-                <span className="value">{projectData.gemini_daily_limit} requests</span>
-              </div>
-              <div className="summary-item">
-                <span className="label">Monthly Limit:</span>
-                <span className="value">{projectData.gemini_monthly_limit} requests</span>
+              
+              <div className="form-group full-width">
+                <label>
+                  <FileText size={16} />
+                  Description
+                </label>
+                <textarea
+                  value={projectData.description}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  placeholder="Describe your project and its purpose..."
+                  rows={4}
+                  className="form-textarea"
+                />
               </div>
             </div>
-          </div>
-        )}
-      </div>
-
-      {/* Navigation */}
-      <div className="form-navigation">
-        <button 
-          onClick={prevStep}
-          disabled={currentStep === 1}
-          className="nav-btn prev"
-        >
-          Previous
-        </button>
-        <button 
-          onClick={nextStep}
-          disabled={loading}
-          className="nav-btn next"
-        >
-          {loading ? (
-            <>
-              <Loader className="spinner" size={16} />
-              Creating...
-            </>
-          ) : currentStep === 4 ? (
-            'Create Project'
-          ) : (
-            'Next'
           )}
-        </button>
+
+          {/* Step 2: File Upload */}
+          {currentStep === 2 && (
+            <div className="form-step">
+              <div className="step-header">
+                <Upload className="step-header-icon" />
+                <h3>Upload Training Documents</h3>
+                <p>Upload PDF documents to train your AI chatbot</p>
+              </div>
+              
+              <div 
+                {...getRootProps()} 
+                className={`dropzone ${isDragActive ? 'active' : ''}`}
+              >
+                <input {...getInputProps()} />
+                <div className="dropzone-content">
+                  <div className="dropzone-icon-wrapper">
+                    <Upload className="dropzone-icon" />
+                    <div className="dropzone-sparkles">
+                      <Sparkles className="sparkle-1" />
+                      <Sparkles className="sparkle-2" />
+                      <Sparkles className="sparkle-3" />
+                    </div>
+                  </div>
+                  <div className="dropzone-text">
+                    {isDragActive ? (
+                      <span className="drop-active">Drop your PDF files here!</span>
+                    ) : (
+                      <>
+                        <span className="drop-main">Drag & drop PDF files here</span>
+                        <span className="drop-sub">or click to browse</span>
+                      </>
+                    )}
+                  </div>
+                  <div className="dropzone-info">
+                    <Shield size={16} />
+                    <span>PDF files only • Max 10MB each • Secure upload</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* ✅ CREATIVE FILE PREVIEW */}
+              {uploadedFiles.length > 0 && (
+                <div className="file-preview">
+                  <div className="file-preview-header">
+                    <h4>
+                      <FileText size={20} />
+                      Files Ready ({uploadedFiles.length})
+                    </h4>
+                  </div>
+                  
+                  <div className="file-list">
+                    {uploadedFiles.map(file => (
+                      <div key={file.id} className={`file-item ${file.status}`}>
+                        <div className="file-icon">
+                          <FileText size={24} />
+                        </div>
+                        
+                        <div className="file-details">
+                          <div className="file-name">{file.name}</div>
+                          <div className="file-size">{formatFileSize(file.size)}</div>
+                          
+                          {/* ✅ CREATIVE PROGRESS BAR */}
+                          {file.status === 'uploading' && (
+                            <div className="progress-container">
+                              <div className="progress-bar">
+                                <div 
+                                  className="progress-fill" 
+                                  style={{ width: `${file.progress}%` }}
+                                />
+                                <div className="progress-text">{file.progress}%</div>
+                              </div>
+                              <div className="progress-details">
+                                <span className="upload-speed">
+                                  <Zap size={12} />
+                                  {file.uploadSpeed > 0 && formatSpeed(file.uploadSpeed)}
+                                </span>
+                                <span className="time-remaining">
+                                  <Clock size={12} />
+                                  {file.timeRemaining > 0 && formatTime(file.timeRemaining)}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Status Indicators */}
+                          <div className="file-status">
+                            {file.status === 'completed' && (
+                              <span className="status completed">
+                                <Check size={14} />
+                                Upload Complete
+                              </span>
+                            )}
+                            {file.status === 'error' && (
+                              <span className="status error">
+                                <X size={14} />
+                                Upload Failed
+                              </span>
+                            )}
+                            {file.status === 'ready' && (
+                              <span className="status ready">
+                                <Clock size={14} />
+                                Ready for Upload
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <button 
+                          onClick={() => removeFile(file.id)}
+                          className="remove-file-btn"
+                          disabled={file.status === 'uploading'}
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 3: Configuration */}
+          {currentStep === 3 && (
+            <div className="form-step">
+              <div className="step-header">
+                <Settings className="step-header-icon" />
+                <h3>AI Configuration</h3>
+                <p>Configure your AI chatbot settings</p>
+              </div>
+              
+              <div className="config-grid">
+                <div className="config-section">
+                  <h4>
+                    <Shield size={18} />
+                    API Configuration
+                  </h4>
+                  
+                  <div className="form-group">
+                    <label>Gemini API Key *</label>
+                    <input
+                      type="password"
+                      value={projectData.gemini_api_key}
+                      onChange={(e) => handleInputChange('gemini_api_key', e.target.value)}
+                      placeholder="Enter your Gemini API key"
+                      className="form-input"
+                      required
+                    />
+                    <small>🔒 Your API key will be encrypted and stored securely</small>
+                  </div>
+                  
+                  <div className="form-group">
+                    <label>AI Model</label>
+                    <select
+                      value={projectData.gemini_model}
+                      onChange={(e) => handleInputChange('gemini_model', e.target.value)}
+                      className="form-select"
+                    >
+                      <option value="gemini-1.5-flash">⚡ Gemini 1.5 Flash (Recommended)</option>
+                      <option value="gemini-1.5-pro">🚀 Gemini 1.5 Pro</option>
+                      <option value="gemini-pro">💎 Gemini Pro</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div className="config-section">
+                  <h4>
+                    <Zap size={18} />
+                    Usage Limits
+                  </h4>
+                  
+                  <div className="form-group">
+                    <label>Daily Usage Limit</label>
+                    <select
+                      value={projectData.gemini_daily_limit}
+                      onChange={(e) => handleInputChange('gemini_daily_limit', parseInt(e.target.value))}
+                      className="form-select"
+                    >
+                      <option value={100}>100 requests/day</option>
+                      <option value={500}>500 requests/day</option>
+                      <option value={1000}>1000 requests/day</option>
+                      <option value={2000}>2000 requests/day</option>
+                      <option value={5000}>5000 requests/day</option>
+                    </select>
+                  </div>
+                  
+                  <div className="form-group">
+                    <label>Monthly Usage Limit</label>
+                    <select
+                      value={projectData.gemini_monthly_limit}
+                      onChange={(e) => handleInputChange('gemini_monthly_limit', parseInt(e.target.value))}
+                      className="form-select"
+                    >
+                      <option value={3000}>3000 requests/month</option>
+                      <option value={15000}>15000 requests/month</option>
+                      <option value={30000}>30000 requests/month</option>
+                      <option value={60000}>60000 requests/month</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="form-group full-width">
+                <label>
+                  <Sparkles size={16} />
+                  Welcome Message
+                </label>
+                <textarea
+                  value={projectData.welcome_message}
+                  onChange={(e) => handleInputChange('welcome_message', e.target.value)}
+                  placeholder="Enter a welcome message for your chatbot..."
+                  rows={3}
+                  className="form-textarea"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Step 4: Review */}
+          {currentStep === 4 && (
+            <div className="form-step">
+              <div className="step-header">
+                <Eye className="step-header-icon" />
+                <h3>Review & Submit</h3>
+                <p>Review your project details before creating</p>
+              </div>
+              
+              <div className="review-grid">
+                <div className="review-section">
+                  <h4>
+                    <Database size={18} />
+                    Project Details
+                  </h4>
+                  <div className="review-items">
+                    <div className="review-item">
+                      <span className="label">Name:</span>
+                      <span className="value">{projectData.name}</span>
+                    </div>
+                    <div className="review-item">
+                      <span className="label">Category:</span>
+                      <span className="value">{projectData.category || 'Not selected'}</span>
+                    </div>
+                    <div className="review-item">
+                      <span className="label">Description:</span>
+                      <span className="value">{projectData.description || 'Not provided'}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="review-section">
+                  <h4>
+                    <Upload size={18} />
+                    Files & AI
+                  </h4>
+                  <div className="review-items">
+                    <div className="review-item">
+                      <span className="label">Files:</span>
+                      <span className="value">{uploadedFiles.length} PDF files</span>
+                    </div>
+                    <div className="review-item">
+                      <span className="label">AI Model:</span>
+                      <span className="value">{projectData.gemini_model}</span>
+                    </div>
+                    <div className="review-item">
+                      <span className="label">Daily Limit:</span>
+                      <span className="value">{projectData.gemini_daily_limit} requests</span>
+                    </div>
+                    <div className="review-item">
+                      <span className="label">Monthly Limit:</span>
+                      <span className="value">{projectData.gemini_monthly_limit} requests</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ✅ CREATIVE NAVIGATION */}
+        <div className="form-navigation">
+          <button 
+            onClick={prevStep}
+            disabled={currentStep === 1}
+            className="nav-btn prev"
+          >
+            <ChevronLeft size={20} />
+            Previous
+          </button>
+          
+          <div className="nav-center">
+            <div className="nav-dots">
+              {[1, 2, 3, 4].map(step => (
+                <div 
+                  key={step}
+                  className={`nav-dot ${currentStep >= step ? 'active' : ''}`}
+                />
+              ))}
+            </div>
+          </div>
+          
+          <button 
+            onClick={nextStep}
+            disabled={loading}
+            className="nav-btn next"
+          >
+            {loading ? (
+              <>
+                <Loader className="spinner" size={20} />
+                Creating...
+              </>
+            ) : currentStep === 4 ? (
+              <>
+                <Sparkles size={20} />
+                Create Project
+              </>
+            ) : (
+              <>
+                Next
+                <ChevronRight size={20} />
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
