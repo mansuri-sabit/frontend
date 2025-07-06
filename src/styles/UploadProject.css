@@ -1,0 +1,364 @@
+.upload-project-container {
+  max-width: 600px;
+  margin: 40px auto;
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 4px 32px rgba(60, 72, 100, 0.10);
+  padding: 36px 32px 28px 32px;
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+  position: relative;
+}
+
+.upload-header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.upload-header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #232946;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.upload-header .header-icon {
+  color: #6c63ff;
+  margin-right: 6px;
+}
+
+.upload-header p {
+  color: #6b7280;
+  font-size: 1.05rem;
+  margin-top: 5px;
+}
+
+.progress-steps {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 30px;
+  gap: 8px;
+}
+
+.step {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.step.active,
+.step.completed {
+  opacity: 1;
+}
+
+.step-number {
+  width: 32px;
+  height: 32px;
+  background: #e0e7ff;
+  color: #6c63ff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 1.1rem;
+  margin-bottom: 6px;
+  border: 2px solid #c7d2fe;
+  transition: background 0.2s, color 0.2s;
+}
+
+.step.completed .step-number {
+  background: #6c63ff;
+  color: #fff;
+  border-color: #6c63ff;
+}
+
+.step-label {
+  font-size: 0.95rem;
+  color: #232946;
+  font-weight: 500;
+}
+
+.message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 18px;
+  font-size: 1rem;
+}
+
+.error-message {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.success-message {
+  background: #f0fdf4;
+  color: #15803d;
+  border: 1px solid #bbf7d0;
+}
+
+.form-step {
+  margin-bottom: 28px;
+}
+
+.form-step h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 18px;
+  color: #232946;
+}
+
+.form-group {
+  margin-bottom: 18px;
+}
+
+.form-group label {
+  display: block;
+  font-weight: 500;
+  color: #232946;
+  margin-bottom: 6px;
+}
+
+.form-group input[type="text"],
+.form-group input[type="password"],
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 11px 13px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 7px;
+  font-size: 1rem;
+  background: #f9fafb;
+  transition: border 0.2s;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  border-color: #6c63ff;
+  outline: none;
+}
+
+.form-group small {
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.form-group input[type="range"] {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.range-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.dropzone {
+  border: 2px dashed #6c63ff;
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 36px 18px;
+  text-align: center;
+  cursor: pointer;
+  margin-bottom: 18px;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.dropzone.active {
+  border-color: #232946;
+  background: #eef2ff;
+}
+
+.dropzone-icon {
+  color: #6c63ff;
+  font-size: 2.2rem;
+  margin-bottom: 8px;
+}
+
+.dropzone-text {
+  font-size: 1.1rem;
+  color: #232946;
+  font-weight: 500;
+}
+
+.dropzone-subtext {
+  font-size: 0.93rem;
+  color: #6b7280;
+  margin-top: 4px;
+}
+
+.file-preview {
+  margin-top: 16px;
+  background: #f3f4f6;
+  border-radius: 7px;
+  padding: 14px 10px;
+}
+
+.file-preview h4 {
+  font-size: 1.05rem;
+  color: #232946;
+  margin-bottom: 10px;
+  font-weight: 600;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #fff;
+  border-radius: 7px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 4px rgba(60,72,100,0.06);
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.file-icon {
+  color: #6c63ff;
+  font-size: 1.4rem;
+}
+
+.file-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.file-name {
+  font-weight: 500;
+  color: #232946;
+  font-size: 1rem;
+}
+
+.file-size {
+  color: #6b7280;
+  font-size: 0.94rem;
+}
+
+.progress-bar {
+  width: 110px;
+  height: 7px;
+  background: #e5e7eb;
+  border-radius: 4px;
+  margin-top: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6c63ff 60%, #a5b4fc 100%);
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+
+.file-status.completed {
+  color: #15803d;
+  font-size: 0.97rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.remove-file-btn {
+  background: transparent;
+  border: none;
+  color: #b91c1c;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 50%;
+  transition: background 0.15s;
+}
+
+.remove-file-btn:hover {
+  background: #fee2e2;
+}
+
+.review-summary {
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 18px 14px;
+  margin-top: 8px;
+}
+
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 7px 0;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 1rem;
+}
+
+.summary-item:last-child {
+  border-bottom: none;
+}
+
+.summary-item .label {
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.summary-item .value {
+  color: #232946;
+  font-weight: 600;
+}
+
+.form-navigation {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.nav-btn {
+  background: #6c63ff;
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  padding: 11px 28px;
+  font-size: 1.06rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s, box-shadow 0.18s;
+  box-shadow: 0 2px 8px rgba(60,72,100,0.08);
+}
+
+.nav-btn.prev {
+  background: #e5e7eb;
+  color: #232946;
+  box-shadow: none;
+}
+
+.nav-btn:disabled {
+  opacity: 0.62;
+  cursor: not-allowed;
+}
+
+@media (max-width: 700px) {
+  .upload-project-container {
+    padding: 18px 5px 12px 5px;
+    max-width: 98vw;
+  }
+  .form-navigation {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
