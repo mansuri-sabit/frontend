@@ -17,8 +17,8 @@ const UploadProject = ({ onProjectCreated }) => {
     category: '',
     gemini_api_key: '',
     gemini_model: 'gemini-1.5-flash',
-    gemini_daily_limit: 100,        // Fixed: Set reasonable default
-    gemini_monthly_limit: 3000,     // Fixed: Set reasonable default
+    gemini_daily_limit: 100,
+    gemini_monthly_limit: 3000,
     gemini_enabled: true,
     welcome_message: 'Hello! How can I help you today?'
   });
@@ -40,13 +40,13 @@ const UploadProject = ({ onProjectCreated }) => {
     }));
 
     setUploadedFiles(prev => [...prev, ...newFiles]);
-    setError(''); // Clear any previous errors
+    setError('');
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      'application/pdf': ['.pdf']  // Only accept PDFs to match backend
+      'application/pdf': ['.pdf']
     },
     maxSize: 10 * 1024 * 1024,
     multiple: true
@@ -120,10 +120,10 @@ const UploadProject = ({ onProjectCreated }) => {
     }
   };
 
-  // Enhanced file upload with proper error handling
+  // ✅ FIXED: Enhanced file upload with correct form field name
   const uploadFilesToProject = async (projectId) => {
-    console.log('Starting file upload for project:', projectId);
-    console.log('Files to upload:', uploadedFiles.map(f => f.name));
+    console.log('🔍 [DEBUG] Starting file upload for project:', projectId);
+    console.log('🔍 [DEBUG] Files to upload:', uploadedFiles.map(f => f.name));
 
     try {
       // Update all files to uploading status
@@ -132,36 +132,48 @@ const UploadProject = ({ onProjectCreated }) => {
       );
 
       for (const fileObj of uploadedFiles) {
-        console.log(`Uploading file: ${fileObj.name}`);
+        console.log(`🔍 [DEBUG] Uploading file: ${fileObj.name}`);
+        console.log(`🔍 [DEBUG] File size: ${fileObj.file.size} bytes`);
+        console.log(`🔍 [DEBUG] File type: ${fileObj.file.type}`);
         
         const formData = new FormData();
-        formData.append('pdfs', fileObj.file); // Match backend expectation
+        // ✅ CRITICAL FIX: Use 'files' to match backend expectation
+        formData.append('files', fileObj.file);
 
-        // Log FormData for debugging
-        console.log('FormData entries:');
-        for (let pair of formData.entries()) {
-          console.log(pair[0], pair[1]);
+        // Debug: Log FormData contents
+        console.log('🔍 [DEBUG] FormData contents:');
+        for (let [key, value] of formData.entries()) {
+          console.log(`🔍 [DEBUG] FormData field: '${key}' =`, value);
+          if (value instanceof File) {
+            console.log(`🔍 [DEBUG]   File name: ${value.name}`);
+            console.log(`🔍 [DEBUG]   File size: ${value.size}`);
+            console.log(`🔍 [DEBUG]   File type: ${value.type}`);
+          }
         }
 
         const uploadUrl = `${process.env.REACT_APP_API_URL}/admin/projects/${projectId}/upload-pdf`;
-        console.log('Upload URL:', uploadUrl);
+        console.log('🔍 [DEBUG] Upload URL:', uploadUrl);
+
+        // Check if token exists
+        const token = localStorage.getItem('token');
+        console.log('🔍 [DEBUG] Auth token exists:', !!token);
 
         const response = await fetch(uploadUrl, {
           method: 'POST',
           credentials: 'include',
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+            'Authorization': `Bearer ${token}`
             // Don't set Content-Type for FormData - let browser handle it
           },
           body: formData
         });
 
-        console.log('Upload response status:', response.status);
-        console.log('Upload response headers:', [...response.headers.entries()]);
+        console.log('🔍 [DEBUG] Response status:', response.status);
+        console.log('🔍 [DEBUG] Response headers:', Object.fromEntries(response.headers.entries()));
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.error('Upload error response:', errorText);
+          console.error('❌ [ERROR] Upload error response:', errorText);
           
           // Update file status to error
           setUploadedFiles(prev => 
@@ -175,8 +187,20 @@ const UploadProject = ({ onProjectCreated }) => {
           throw new Error(`Failed to upload ${fileObj.name}: ${response.status} ${response.statusText}`);
         }
 
-        const result = await response.json();
-        console.log('Upload successful for', fileObj.name, ':', result);
+        const responseText = await response.text();
+        console.log('🔍 [DEBUG] Response body:', responseText);
+
+        // Try to parse as JSON
+        let result;
+        try {
+          result = JSON.parse(responseText);
+          console.log('🔍 [DEBUG] Parsed response:', result);
+        } catch (e) {
+          console.log('🔍 [DEBUG] Response is not JSON:', responseText);
+          throw new Error('Invalid response format');
+        }
+
+        console.log('✅ Upload successful for', fileObj.name, ':', result);
 
         // Update file status to completed
         setUploadedFiles(prev => 
@@ -188,9 +212,9 @@ const UploadProject = ({ onProjectCreated }) => {
         );
       }
 
-      console.log('All files uploaded successfully');
+      console.log('✅ All files uploaded successfully');
     } catch (error) {
-      console.error('File upload error:', error);
+      console.error('❌ [ERROR] File upload error:', error);
       
       // Reset failed files to ready status
       setUploadedFiles(prev => 
@@ -211,7 +235,7 @@ const UploadProject = ({ onProjectCreated }) => {
     setError('');
 
     try {
-      console.log('Creating project with data:', projectData);
+      console.log('🔍 [DEBUG] Creating project with data:', projectData);
 
       // Create project first
       const response = await fetch(`${process.env.REACT_APP_API_URL}/api/admin/projects`, {
@@ -224,16 +248,16 @@ const UploadProject = ({ onProjectCreated }) => {
         body: JSON.stringify(projectData)
       });
 
-      console.log('Project creation response status:', response.status);
+      console.log('🔍 [DEBUG] Project creation response status:', response.status);
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('Project creation error:', errorData);
+        console.error('❌ [ERROR] Project creation error:', errorData);
         throw new Error(errorData.error || 'Failed to create project');
       }
 
       const result = await response.json();
-      console.log('Project created successfully:', result);
+      console.log('✅ Project created successfully:', result);
 
       // Upload files if any
       if (uploadedFiles.length > 0 && result.project && result.project.id) {
@@ -241,7 +265,7 @@ const UploadProject = ({ onProjectCreated }) => {
           await uploadFilesToProject(result.project.id);
           setSuccess(`Project "${projectData.name}" created successfully with ${uploadedFiles.length} files uploaded!`);
         } catch (uploadError) {
-          console.error('File upload failed:', uploadError);
+          console.error('❌ [ERROR] File upload failed:', uploadError);
           setSuccess(`Project "${projectData.name}" created successfully, but file upload failed: ${uploadError.message}`);
         }
       } else {
@@ -253,7 +277,7 @@ const UploadProject = ({ onProjectCreated }) => {
       }, 2000);
 
     } catch (error) {
-      console.error('Project creation error:', error);
+      console.error('❌ [ERROR] Project creation error:', error);
       setError(error.message || 'Failed to create project. Please try again.');
     } finally {
       setLoading(false);
