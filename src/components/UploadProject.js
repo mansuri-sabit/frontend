@@ -31,11 +31,18 @@ const UploadProject = ({ onProjectCreated }) => {
     name: '',
     description: '',
     category: '',
+    
+    // Gemini Configuration
     gemini_api_key: '',
     gemini_model: 'gemini-1.5-flash',
     gemini_daily_limit: 100,
     gemini_monthly_limit: 3000,
     gemini_enabled: true,
+    
+    // Subscription Management
+    monthly_token_limit: 100000,
+    subscription_duration: 30, // days
+    
     welcome_message: 'Hello! How can I help you today?'
   });
 
@@ -95,9 +102,9 @@ const UploadProject = ({ onProjectCreated }) => {
     return `${Math.round(bytesPerSecond / (1024 * 1024))} MB/s`;
   };
 
-  // ✅ PUBLIC ENDPOINT: No authentication required
+  // File upload function
   const uploadFilesToProject = async (projectId) => {
-    console.log('🔍 [DEBUG] Starting public file upload for project:', projectId);
+    console.log('🔍 [DEBUG] Starting file upload for project:', projectId);
     
     try {
       setUploadedFiles(prev => 
@@ -116,7 +123,6 @@ const UploadProject = ({ onProjectCreated }) => {
         const formData = new FormData();
         formData.append('files', fileObj.file);
         
-        // ✅ PUBLIC ENDPOINT: No authentication
         const uploadUrl = `${process.env.REACT_APP_API_URL}/public/projects/${projectId}/upload-pdf`;
         
         let uploadStartTime = Date.now();
@@ -128,7 +134,6 @@ const UploadProject = ({ onProjectCreated }) => {
             url: uploadUrl,
             data: formData,
             headers: {
-              // ❌ No Authorization header needed
               'Content-Type': 'multipart/form-data'
             },
             timeout: 120000,
@@ -163,7 +168,7 @@ const UploadProject = ({ onProjectCreated }) => {
             }
           });
           
-          console.log('✅ Public upload successful:', response.data);
+          console.log('✅ Upload successful:', response.data);
           
           setUploadedFiles(prev => 
             prev.map(file => 
@@ -180,7 +185,7 @@ const UploadProject = ({ onProjectCreated }) => {
           );
           
         } catch (uploadError) {
-          console.error('❌ Public upload failed:', uploadError);
+          console.error('❌ Upload failed:', uploadError);
           
           setUploadedFiles(prev => 
             prev.map(file => 
@@ -202,10 +207,10 @@ const UploadProject = ({ onProjectCreated }) => {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
 
-      console.log('✅ All files uploaded successfully via public endpoint');
+      console.log('✅ All files uploaded successfully');
       
     } catch (error) {
-      console.error('❌ Public upload process failed:', error);
+      console.error('❌ Upload process failed:', error);
       
       setUploadedFiles(prev => 
         prev.map(file => 
@@ -224,7 +229,7 @@ const UploadProject = ({ onProjectCreated }) => {
     setError('');
 
     try {
-      console.log('🔍 [DEBUG] Creating project with public upload:', projectData);
+      console.log('🔍 [DEBUG] Creating project:', projectData);
 
       const response = await axios({
         method: 'POST',
@@ -340,7 +345,7 @@ const UploadProject = ({ onProjectCreated }) => {
   return (
     <div className="upload-project-wrapper">
       <div className="upload-project-container">
-        {/* ✅ CREATIVE HEADER */}
+        {/* Header */}
         <div className="upload-header">
           <div className="header-icon-wrapper">
             <Sparkles className="header-sparkle" />
@@ -362,7 +367,7 @@ const UploadProject = ({ onProjectCreated }) => {
           </div>
         </div>
 
-        {/* ✅ CREATIVE PROGRESS STEPS */}
+        {/* Progress Steps */}
         <div className="progress-steps">
           {stepIcons.map((step, index) => {
             const StepIcon = step.icon;
@@ -394,7 +399,7 @@ const UploadProject = ({ onProjectCreated }) => {
           })}
         </div>
 
-        {/* ✅ CREATIVE MESSAGES */}
+        {/* Messages */}
         {error && (
           <div className="message error-message">
             <AlertCircle size={20} />
@@ -413,7 +418,7 @@ const UploadProject = ({ onProjectCreated }) => {
           </div>
         )}
 
-        {/* ✅ STEP CONTENT */}
+        {/* Step Content */}
         <div className="step-content">
           {/* Step 1: Project Information */}
           {currentStep === 1 && (
@@ -517,7 +522,7 @@ const UploadProject = ({ onProjectCreated }) => {
                 </div>
               </div>
 
-              {/* ✅ CREATIVE FILE PREVIEW */}
+              {/* File Preview */}
               {uploadedFiles.length > 0 && (
                 <div className="file-preview">
                   <div className="file-preview-header">
@@ -538,7 +543,7 @@ const UploadProject = ({ onProjectCreated }) => {
                           <div className="file-name">{file.name}</div>
                           <div className="file-size">{formatFileSize(file.size)}</div>
                           
-                          {/* ✅ CREATIVE PROGRESS BAR */}
+                          {/* Progress Bar */}
                           {file.status === 'uploading' && (
                             <div className="progress-container">
                               <div className="progress-bar">
@@ -599,182 +604,130 @@ const UploadProject = ({ onProjectCreated }) => {
             </div>
           )}
 
-// Add to UploadProject.js - Step 3 Configuration section
-{currentStep === 3 && (
-  <div className="form-step">
-    <div className="step-header">
-      <Settings className="step-header-icon" />
-      <h3>AI Configuration</h3>
-      <p>Configure your AI chatbot settings</p>
-    </div>
-    
-    {/* AI Provider Selection */}
-    <div className="config-section">
-      <h4>
-        <Zap size={18} />
-        AI Provider Selection
-      </h4>
-      
-      <div className="provider-selection">
-        <div className="provider-option">
-          <input
-            type="radio"
-            id="gemini"
-            name="ai_provider"
-            value="gemini"
-            checked={projectData.ai_provider === 'gemini'}
-            onChange={(e) => handleInputChange('ai_provider', e.target.value)}
-          />
-          <label htmlFor="gemini" className="provider-label">
-            <Sparkles size={20} />
-            <div>
-              <strong>Google Gemini</strong>
-              <p>Fast and efficient AI responses</p>
+          {/* Step 3: Configuration */}
+          {currentStep === 3 && (
+            <div className="form-step">
+              <div className="step-header">
+                <Settings className="step-header-icon" />
+                <h3>AI Configuration</h3>
+                <p>Configure your AI chatbot settings</p>
+              </div>
+              
+              {/* Gemini Configuration */}
+              <div className="config-section">
+                <h4>
+                  <Sparkles size={18} />
+                  Gemini AI Configuration
+                </h4>
+                
+                <div className="form-group">
+                  <label>Gemini API Key *</label>
+                  <input
+                    type="password"
+                    value={projectData.gemini_api_key}
+                    onChange={(e) => handleInputChange('gemini_api_key', e.target.value)}
+                    placeholder="Enter your Gemini API key"
+                    className="form-input"
+                    required
+                  />
+                  <small>🔒 Your API key will be encrypted and stored securely</small>
+                </div>
+                
+                <div className="form-group">
+                  <label>Gemini Model</label>
+                  <select
+                    value={projectData.gemini_model}
+                    onChange={(e) => handleInputChange('gemini_model', e.target.value)}
+                    className="form-select"
+                  >
+                    <option value="gemini-1.5-flash">⚡ Gemini 1.5 Flash (Recommended)</option>
+                    <option value="gemini-1.5-pro">🚀 Gemini 1.5 Pro</option>
+                    <option value="gemini-pro">💎 Gemini Pro</option>
+                  </select>
+                </div>
+              </div>
+              
+              {/* Subscription Configuration */}
+              <div className="config-section">
+                <h4>
+                  <Clock size={18} />
+                  Subscription & Limits
+                </h4>
+                
+                <div className="form-group">
+                  <label>Monthly Token Limit</label>
+                  <select
+                    value={projectData.monthly_token_limit}
+                    onChange={(e) => handleInputChange('monthly_token_limit', parseInt(e.target.value))}
+                    className="form-select"
+                  >
+                    <option value={50000}>50,000 tokens/month</option>
+                    <option value={100000}>100,000 tokens/month</option>
+                    <option value={250000}>250,000 tokens/month</option>
+                    <option value={500000}>500,000 tokens/month</option>
+                    <option value={1000000}>1,000,000 tokens/month</option>
+                  </select>
+                </div>
+                
+                <div className="form-group">
+                  <label>Subscription Duration</label>
+                  <select
+                    value={projectData.subscription_duration}
+                    onChange={(e) => handleInputChange('subscription_duration', parseInt(e.target.value))}
+                    className="form-select"
+                  >
+                    <option value={30}>1 Month</option>
+                    <option value={90}>3 Months</option>
+                    <option value={180}>6 Months</option>
+                    <option value={365}>1 Year</option>
+                  </select>
+                </div>
+                
+                <div className="form-group">
+                  <label>Daily Usage Limit</label>
+                  <select
+                    value={projectData.gemini_daily_limit}
+                    onChange={(e) => handleInputChange('gemini_daily_limit', parseInt(e.target.value))}
+                    className="form-select"
+                  >
+                    <option value={100}>100 requests/day</option>
+                    <option value={500}>500 requests/day</option>
+                    <option value={1000}>1000 requests/day</option>
+                    <option value={2000}>2000 requests/day</option>
+                    <option value={5000}>5000 requests/day</option>
+                  </select>
+                </div>
+                
+                <div className="form-group">
+                  <label>Monthly Usage Limit</label>
+                  <select
+                    value={projectData.gemini_monthly_limit}
+                    onChange={(e) => handleInputChange('gemini_monthly_limit', parseInt(e.target.value))}
+                    className="form-select"
+                  >
+                    <option value={3000}>3000 requests/month</option>
+                    <option value={15000}>15000 requests/month</option>
+                    <option value={30000}>30000 requests/month</option>
+                    <option value={60000}>60000 requests/month</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div className="form-group full-width">
+                <label>
+                  <Sparkles size={16} />
+                  Welcome Message
+                </label>
+                <textarea
+                  value={projectData.welcome_message}
+                  onChange={(e) => handleInputChange('welcome_message', e.target.value)}
+                  placeholder="Enter a welcome message for your chatbot..."
+                  rows={3}
+                  className="form-textarea"
+                />
+              </div>
             </div>
-          </label>
-        </div>
-        
-        <div className="provider-option">
-          <input
-            type="radio"
-            id="openai"
-            name="ai_provider"
-            value="openai"
-            checked={projectData.ai_provider === 'openai'}
-            onChange={(e) => handleInputChange('ai_provider', e.target.value)}
-          />
-          <label htmlFor="openai" className="provider-label">
-            <Zap size={20} />
-            <div>
-              <strong>OpenAI GPT-4o</strong>
-              <p>Advanced AI with superior accuracy</p>
-            </div>
-          </label>
-        </div>
-      </div>
-    </div>
-    
-    {/* Gemini Configuration */}
-    {projectData.ai_provider === 'gemini' && (
-      <div className="config-section">
-        <h4>
-          <Sparkles size={18} />
-          Gemini Configuration
-        </h4>
-        
-        <div className="form-group">
-          <label>Gemini API Key *</label>
-          <input
-            type="password"
-            value={projectData.gemini_api_key}
-            onChange={(e) => handleInputChange('gemini_api_key', e.target.value)}
-            placeholder="Enter your Gemini API key"
-            className="form-input"
-            required
-          />
-        </div>
-        
-        <div className="form-group">
-          <label>Gemini Model</label>
-          <select
-            value={projectData.gemini_model}
-            onChange={(e) => handleInputChange('gemini_model', e.target.value)}
-            className="form-select"
-          >
-            <option value="gemini-1.5-flash">⚡ Gemini 1.5 Flash (Recommended)</option>
-            <option value="gemini-1.5-pro">🚀 Gemini 1.5 Pro</option>
-            <option value="gemini-pro">💎 Gemini Pro</option>
-          </select>
-        </div>
-      </div>
-    )}
-    
-    {/* OpenAI Configuration step -3 */}
-    {projectData.ai_provider === 'openai' && (
-      <div className="config-section">
-        <h4>
-          <Zap size={18} />
-          OpenAI Configuration
-        </h4>
-        
-        <div className="form-group">
-          <label>OpenAI API Key *</label>
-          <input
-            type="password"
-            value={projectData.openai_api_key}
-            onChange={(e) => handleInputChange('openai_api_key', e.target.value)}
-            placeholder="Enter your OpenAI API key"
-            className="form-input"
-            required
-          />
-        </div>
-        
-        <div className="form-group">
-          <label>OpenAI Model</label>
-          <select
-            value={projectData.openai_model}
-            onChange={(e) => handleInputChange('openai_model', e.target.value)}
-            className="form-select"
-          >
-            <option value="gpt-4o">🚀 GPT-4o (Recommended)</option>
-            <option value="gpt-4">💎 GPT-4</option>
-            <option value="gpt-3.5-turbo">⚡ GPT-3.5 Turbo</option>
-          </select>
-        </div>
-        
-        <div className="form-group">
-          <label>Assistant ID (Optional)</label>
-          <input
-            type="text"
-            value={projectData.openai_assistant_id}
-            onChange={(e) => handleInputChange('openai_assistant_id', e.target.value)}
-            placeholder="Enter OpenAI Assistant ID (optional)"
-            className="form-input"
-          />
-          <small>🤖 Use a pre-configured OpenAI Assistant for specialized responses</small>
-        </div>
-      </div>
-    )}
-    
-    {/* Subscription Configuration */}
-    <div className="config-section">
-      <h4>
-        <Clock size={18} />
-        Subscription & Limits
-      </h4>
-      
-      <div className="form-group">
-        <label>Monthly Token Limit</label>
-        <select
-          value={projectData.monthly_token_limit}
-          onChange={(e) => handleInputChange('monthly_token_limit', parseInt(e.target.value))}
-          className="form-select"
-        >
-          <option value={50000}>50,000 tokens/month</option>
-          <option value={100000}>100,000 tokens/month</option>
-          <option value={250000}>250,000 tokens/month</option>
-          <option value={500000}>500,000 tokens/month</option>
-          <option value={1000000}>1,000,000 tokens/month</option>
-        </select>
-      </div>
-      
-      <div className="form-group">
-        <label>Subscription Duration</label>
-        <select
-          value={projectData.subscription_duration}
-          onChange={(e) => handleInputChange('subscription_duration', parseInt(e.target.value))}
-          className="form-select"
-        >
-          <option value={30}>1 Month</option>
-          <option value={90}>3 Months</option>
-          <option value={180}>6 Months</option>
-          <option value={365}>1 Year</option>
-        </select>
-      </div>
-    </div>
-  </div>
-)}
-
+          )}
 
           {/* Step 4: Review */}
           {currentStep === 4 && (
@@ -810,7 +763,7 @@ const UploadProject = ({ onProjectCreated }) => {
                 <div className="review-section">
                   <h4>
                     <Upload size={18} />
-                    Files & AI
+                    AI & Subscription
                   </h4>
                   <div className="review-items">
                     <div className="review-item">
@@ -820,6 +773,18 @@ const UploadProject = ({ onProjectCreated }) => {
                     <div className="review-item">
                       <span className="label">AI Model:</span>
                       <span className="value">{projectData.gemini_model}</span>
+                    </div>
+                    <div className="review-item">
+                      <span className="label">Monthly Token Limit:</span>
+                      <span className="value">{projectData.monthly_token_limit.toLocaleString()} tokens</span>
+                    </div>
+                    <div className="review-item">
+                      <span className="label">Subscription Duration:</span>
+                      <span className="value">
+                        {projectData.subscription_duration === 30 ? '1 Month' :
+                         projectData.subscription_duration === 90 ? '3 Months' :
+                         projectData.subscription_duration === 180 ? '6 Months' : '1 Year'}
+                      </span>
                     </div>
                     <div className="review-item">
                       <span className="label">Daily Limit:</span>
@@ -836,7 +801,7 @@ const UploadProject = ({ onProjectCreated }) => {
           )}
         </div>
 
-        {/* ✅ CREATIVE NAVIGATION */}
+        {/* Navigation */}
         <div className="form-navigation">
           <button 
             onClick={prevStep}
