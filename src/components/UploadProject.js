@@ -27,24 +27,58 @@ const UploadProject = ({ onProjectCreated }) => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
-  const [projectData, setProjectData] = useState({
-    name: '',
-    description: '',
-    category: '',
-    
-    // Gemini Configuration
-    gemini_api_key: '',
-    gemini_model: 'gemini-1.5-flash',
-    gemini_daily_limit: 100,
-    gemini_monthly_limit: 3000,
-    gemini_enabled: true,
-    
-    // Subscription Management
-    monthly_token_limit: 100000,
-    subscription_duration: 30, // days
-    
-    welcome_message: 'Hello! How can I help you today?'
-  });
+const [projectData, setProjectData] = useState({
+  name: '',
+  description: '',
+  category: '',
+  
+  // Gemini Configuration
+  gemini_api_key: '',
+  gemini_model: 'gemini-1.5-flash',
+  gemini_daily_limit: 100,
+  gemini_monthly_limit: 3000,
+  gemini_enabled: true,
+  
+  // ✅ NEW: Subscription Plan Management
+  subscription_plan: 'basic',
+  monthly_token_limit: 100000,
+  subscription_duration: 30, // days
+  
+  welcome_message: 'Hello! How can I help you today?'
+});
+
+// ✅ NEW: Subscription Plan Options
+const subscriptionPlans = [
+  { 
+    value: 'free', 
+    label: 'Free Plan', 
+    tokens: 10000,
+    price: '₹0/month',
+    features: ['Smart AI responses', '10K tokens/month', 'Email support']
+  },
+  { 
+    value: 'basic', 
+    label: 'Basic Plan', 
+    tokens: 100000,
+    price: '₹999/month',
+    features: ['Smart AI responses', '100K tokens/month', 'Priority support']
+  },
+  { 
+    value: 'pro', 
+    label: 'Pro Plan', 
+    tokens: 500000,
+    price: '₹2999/month',
+    features: ['Smart AI responses', '500K tokens/month', '24/7 support']
+  },
+  { 
+    value: 'enterprise', 
+    label: 'Enterprise Plan', 
+    tokens: 2000000,
+    price: 'Custom pricing',
+    features: ['Smart AI responses', '2M+ tokens/month', 'Dedicated support']
+  }
+];
+
 
   const onDrop = useCallback((acceptedFiles, rejectedFiles) => {
     if (rejectedFiles.length > 0) {
@@ -604,201 +638,257 @@ const UploadProject = ({ onProjectCreated }) => {
             </div>
           )}
 
-          {/* Step 3: Configuration */}
-          {currentStep === 3 && (
-            <div className="form-step">
-              <div className="step-header">
-                <Settings className="step-header-icon" />
-                <h3>AI Configuration</h3>
-                <p>Configure your AI chatbot settings</p>
-              </div>
-              
-              {/* Gemini Configuration */}
-              <div className="config-section">
-                <h4>
-                  <Sparkles size={18} />
-                  Gemini AI Configuration
-                </h4>
-                
-                <div className="form-group">
-                  <label>Gemini API Key *</label>
-                  <input
-                    type="password"
-                    value={projectData.gemini_api_key}
-                    onChange={(e) => handleInputChange('gemini_api_key', e.target.value)}
-                    placeholder="Enter your Gemini API key"
-                    className="form-input"
-                    required
-                  />
-                  <small>🔒 Your API key will be encrypted and stored securely</small>
-                </div>
-                
-                <div className="form-group">
-                  <label>Gemini Model</label>
-                  <select
-                    value={projectData.gemini_model}
-                    onChange={(e) => handleInputChange('gemini_model', e.target.value)}
-                    className="form-select"
-                  >
-                    <option value="gemini-1.5-flash">⚡ Gemini 1.5 Flash (Recommended)</option>
-                    <option value="gemini-1.5-pro">🚀 Gemini 1.5 Pro</option>
-                    <option value="gemini-pro">💎 Gemini Pro</option>
-                  </select>
-                </div>
-              </div>
-              
-              {/* Subscription Configuration */}
-              <div className="config-section">
-                <h4>
-                  <Clock size={18} />
-                  Subscription & Limits
-                </h4>
-                
-                <div className="form-group">
-                  <label>Monthly Token Limit</label>
-                  <select
-                    value={projectData.monthly_token_limit}
-                    onChange={(e) => handleInputChange('monthly_token_limit', parseInt(e.target.value))}
-                    className="form-select"
-                  >
-                    <option value={50000}>50,000 tokens/month</option>
-                    <option value={100000}>100,000 tokens/month</option>
-                    <option value={250000}>250,000 tokens/month</option>
-                    <option value={500000}>500,000 tokens/month</option>
-                    <option value={1000000}>1,000,000 tokens/month</option>
-                  </select>
-                </div>
-                
-                <div className="form-group">
-                  <label>Subscription Duration</label>
-                  <select
-                    value={projectData.subscription_duration}
-                    onChange={(e) => handleInputChange('subscription_duration', parseInt(e.target.value))}
-                    className="form-select"
-                  >
-                    <option value={30}>1 Month</option>
-                    <option value={90}>3 Months</option>
-                    <option value={180}>6 Months</option>
-                    <option value={365}>1 Year</option>
-                  </select>
-                </div>
-                
-                <div className="form-group">
-                  <label>Daily Usage Limit</label>
-                  <select
-                    value={projectData.gemini_daily_limit}
-                    onChange={(e) => handleInputChange('gemini_daily_limit', parseInt(e.target.value))}
-                    className="form-select"
-                  >
-                    <option value={100}>100 requests/day</option>
-                    <option value={500}>500 requests/day</option>
-                    <option value={1000}>1000 requests/day</option>
-                    <option value={2000}>2000 requests/day</option>
-                    <option value={5000}>5000 requests/day</option>
-                  </select>
-                </div>
-                
-                <div className="form-group">
-                  <label>Monthly Usage Limit</label>
-                  <select
-                    value={projectData.gemini_monthly_limit}
-                    onChange={(e) => handleInputChange('gemini_monthly_limit', parseInt(e.target.value))}
-                    className="form-select"
-                  >
-                    <option value={3000}>3000 requests/month</option>
-                    <option value={15000}>15000 requests/month</option>
-                    <option value={30000}>30000 requests/month</option>
-                    <option value={60000}>60000 requests/month</option>
-                  </select>
-                </div>
-              </div>
-              
-              <div className="form-group full-width">
-                <label>
-                  <Sparkles size={16} />
-                  Welcome Message
-                </label>
-                <textarea
-                  value={projectData.welcome_message}
-                  onChange={(e) => handleInputChange('welcome_message', e.target.value)}
-                  placeholder="Enter a welcome message for your chatbot..."
-                  rows={3}
-                  className="form-textarea"
-                />
-              </div>
+{/* Step 3: Configuration */}
+{currentStep === 3 && (
+  <div className="form-step">
+    <div className="step-header">
+      <Settings className="step-header-icon" />
+      <h3>Subscription & AI Configuration</h3>
+      <p>Choose your subscription plan and configure AI settings</p>
+    </div>
+    
+    {/* ✅ NEW: Subscription Plan Selection */}
+    <div className="config-section">
+      <h4>
+        <Clock size={18} />
+        Choose Subscription Plan
+      </h4>
+      
+      <div className="subscription-plans">
+        {subscriptionPlans.map((plan) => (
+          <div 
+            key={plan.value}
+            className={`plan-card ${projectData.subscription_plan === plan.value ? 'selected' : ''}`}
+            onClick={() => {
+              handleInputChange('subscription_plan', plan.value);
+              handleInputChange('monthly_token_limit', plan.tokens);
+            }}
+          >
+            <div className="plan-header">
+              <h5>{plan.label}</h5>
+              <span className="plan-price" style={{ color: plan.color }}>{plan.price}</span>
             </div>
-          )}
+            <div className="plan-features">
+              <p><strong>{plan.tokens.toLocaleString()} tokens/month</strong></p>
+              <ul>
+                {plan.features.map((feature, index) => (
+                  <li key={index}>✓ {feature}</li>
+                ))}
+              </ul>
+            </div>
+            {projectData.subscription_plan === plan.value && (
+              <div className="plan-selected">
+                <Check size={20} />
+                Selected
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      
+      <div className="plan-summary">
+        <div className="selected-plan-info">
+          <h5>Selected Plan: {subscriptionPlans.find(p => p.value === projectData.subscription_plan)?.label}</h5>
+          <p>Monthly Token Limit: <strong>{projectData.monthly_token_limit.toLocaleString()} tokens</strong></p>
+        </div>
+      </div>
+    </div>
+    
+    {/* Gemini Configuration */}
+    <div className="config-section">
+      <h4>
+        <Sparkles size={18} />
+        Gemini AI Configuration
+      </h4>
+      
+      <div className="form-group">
+        <label>Gemini API Key *</label>
+        <input
+          type="password"
+          value={projectData.gemini_api_key}
+          onChange={(e) => handleInputChange('gemini_api_key', e.target.value)}
+          placeholder="Enter your Gemini API key"
+          className="form-input"
+          required
+        />
+        <small>🔒 Your API key will be encrypted and stored securely</small>
+      </div>
+      
+      <div className="form-group">
+        <label>Gemini Model</label>
+        <select
+          value={projectData.gemini_model}
+          onChange={(e) => handleInputChange('gemini_model', e.target.value)}
+          className="form-select"
+        >
+          <option value="gemini-1.5-flash">⚡ Gemini 1.5 Flash (Recommended)</option>
+          <option value="gemini-1.5-pro">🚀 Gemini 1.5 Pro</option>
+          <option value="gemini-pro">💎 Gemini Pro</option>
+        </select>
+      </div>
+    </div>
+    
+    {/* Additional Configuration */}
+    <div className="config-section">
+      <h4>
+        <Settings size={18} />
+        Additional Settings
+      </h4>
+      
+      <div className="form-group">
+        <label>Subscription Duration</label>
+        <select
+          value={projectData.subscription_duration}
+          onChange={(e) => handleInputChange('subscription_duration', parseInt(e.target.value))}
+          className="form-select"
+        >
+          <option value={30}>1 Month</option>
+          <option value={90}>3 Months</option>
+          <option value={180}>6 Months</option>
+          <option value={365}>1 Year</option>
+        </select>
+      </div>
+      
+      <div className="form-group">
+        <label>Daily Usage Limit</label>
+        <select
+          value={projectData.gemini_daily_limit}
+          onChange={(e) => handleInputChange('gemini_daily_limit', parseInt(e.target.value))}
+          className="form-select"
+        >
+          <option value={100}>100 requests/day</option>
+          <option value={500}>500 requests/day</option>
+          <option value={1000}>1000 requests/day</option>
+          <option value={2000}>2000 requests/day</option>
+          <option value={5000}>5000 requests/day</option>
+        </select>
+      </div>
+      
+      <div className="form-group">
+        <label>Monthly Usage Limit</label>
+        <select
+          value={projectData.gemini_monthly_limit}
+          onChange={(e) => handleInputChange('gemini_monthly_limit', parseInt(e.target.value))}
+          className="form-select"
+        >
+          <option value={3000}>3000 requests/month</option>
+          <option value={15000}>15000 requests/month</option>
+          <option value={30000}>30000 requests/month</option>
+          <option value={60000}>60000 requests/month</option>
+        </select>
+      </div>
+    </div>
+    
+    <div className="form-group full-width">
+      <label>
+        <Sparkles size={16} />
+        Welcome Message
+      </label>
+      <textarea
+        value={projectData.welcome_message}
+        onChange={(e) => handleInputChange('welcome_message', e.target.value)}
+        placeholder="Enter a welcome message for your chatbot..."
+        rows={3}
+        className="form-textarea"
+      />
+    </div>
+  </div>
+)}
+
 
           {/* Step 4: Review */}
-          {currentStep === 4 && (
-            <div className="form-step">
-              <div className="step-header">
-                <Eye className="step-header-icon" />
-                <h3>Review & Submit</h3>
-                <p>Review your project details before creating</p>
-              </div>
-              
-              <div className="review-grid">
-                <div className="review-section">
-                  <h4>
-                    <Database size={18} />
-                    Project Details
-                  </h4>
-                  <div className="review-items">
-                    <div className="review-item">
-                      <span className="label">Name:</span>
-                      <span className="value">{projectData.name}</span>
-                    </div>
-                    <div className="review-item">
-                      <span className="label">Category:</span>
-                      <span className="value">{projectData.category || 'Not selected'}</span>
-                    </div>
-                    <div className="review-item">
-                      <span className="label">Description:</span>
-                      <span className="value">{projectData.description || 'Not provided'}</span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="review-section">
-                  <h4>
-                    <Upload size={18} />
-                    AI & Subscription
-                  </h4>
-                  <div className="review-items">
-                    <div className="review-item">
-                      <span className="label">Files:</span>
-                      <span className="value">{uploadedFiles.length} PDF files</span>
-                    </div>
-                    <div className="review-item">
-                      <span className="label">AI Model:</span>
-                      <span className="value">{projectData.gemini_model}</span>
-                    </div>
-                    <div className="review-item">
-                      <span className="label">Monthly Token Limit:</span>
-                      <span className="value">{projectData.monthly_token_limit.toLocaleString()} tokens</span>
-                    </div>
-                    <div className="review-item">
-                      <span className="label">Subscription Duration:</span>
-                      <span className="value">
-                        {projectData.subscription_duration === 30 ? '1 Month' :
-                         projectData.subscription_duration === 90 ? '3 Months' :
-                         projectData.subscription_duration === 180 ? '6 Months' : '1 Year'}
-                      </span>
-                    </div>
-                    <div className="review-item">
-                      <span className="label">Daily Limit:</span>
-                      <span className="value">{projectData.gemini_daily_limit} requests</span>
-                    </div>
-                    <div className="review-item">
-                      <span className="label">Monthly Limit:</span>
-                      <span className="value">{projectData.gemini_monthly_limit} requests</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+{/* Step 4: Review */}
+{currentStep === 4 && (
+  <div className="form-step">
+    <div className="step-header">
+      <Eye className="step-header-icon" />
+      <h3>Review & Submit</h3>
+      <p>Review your project details before creating</p>
+    </div>
+    
+    <div className="review-grid">
+      <div className="review-section">
+        <h4>
+          <Database size={18} />
+          Project Details
+        </h4>
+        <div className="review-items">
+          <div className="review-item">
+            <span className="label">Name:</span>
+            <span className="value">{projectData.name}</span>
+          </div>
+          <div className="review-item">
+            <span className="label">Category:</span>
+            <span className="value">{projectData.category || 'Not selected'}</span>
+          </div>
+          <div className="review-item">
+            <span className="label">Description:</span>
+            <span className="value">{projectData.description || 'Not provided'}</span>
+          </div>
+        </div>
+      </div>
+      
+      <div className="review-section">
+        <h4>
+          <Clock size={18} />
+          Subscription Plan
+        </h4>
+        <div className="review-items">
+          <div className="review-item">
+            <span className="label">Plan:</span>
+            <span className="value">
+              {subscriptionPlans.find(p => p.value === projectData.subscription_plan)?.label}
+            </span>
+          </div>
+          <div className="review-item">
+            <span className="label">Monthly Token Limit:</span>
+            <span className="value">{projectData.monthly_token_limit.toLocaleString()} tokens</span>
+          </div>
+          <div className="review-item">
+            <span className="label">Price:</span>
+            <span className="value">
+              {subscriptionPlans.find(p => p.value === projectData.subscription_plan)?.price}
+            </span>
+          </div>
+          <div className="review-item">
+            <span className="label">Duration:</span>
+            <span className="value">
+              {projectData.subscription_duration === 30 ? '1 Month' :
+               projectData.subscription_duration === 90 ? '3 Months' :
+               projectData.subscription_duration === 180 ? '6 Months' : '1 Year'}
+            </span>
+          </div>
+        </div>
+      </div>
+      
+      <div className="review-section">
+        <h4>
+          <Upload size={18} />
+          AI Configuration
+        </h4>
+        <div className="review-items">
+          <div className="review-item">
+            <span className="label">Files:</span>
+            <span className="value">{uploadedFiles.length} PDF files</span>
+          </div>
+          <div className="review-item">
+            <span className="label">AI Model:</span>
+            <span className="value">{projectData.gemini_model}</span>
+          </div>
+          <div className="review-item">
+            <span className="label">Daily Limit:</span>
+            <span className="value">{projectData.gemini_daily_limit} requests</span>
+          </div>
+          <div className="review-item">
+            <span className="label">Monthly Limit:</span>
+            <span className="value">{projectData.gemini_monthly_limit} requests</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
+
         </div>
 
         {/* Navigation */}
