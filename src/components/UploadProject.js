@@ -33,8 +33,8 @@ const [projectData, setProjectData] = useState({
   category: '',
   
   // Gemini Configuration
-  gemini_api_key: '',
-  gemini_model: 'gemini-1.5-flash',
+  gemini_api_key: 'AIzaSyC28wDyVPh9bvkHxRKHRwojsUarr5GLUME',
+  gemini_model: 'gemini-2.0-flash',
   gemini_daily_limit: 100,
   gemini_monthly_limit: 3000,
   gemini_enabled: true,
@@ -721,9 +721,7 @@ const subscriptionPlans = [
           onChange={(e) => handleInputChange('gemini_model', e.target.value)}
           className="form-select"
         >
-          <option value="gemini-1.5-flash">⚡ Gemini 1.5 Flash (Recommended)</option>
-          <option value="gemini-1.5-pro">🚀 Gemini 1.5 Pro</option>
-          <option value="gemini-pro">💎 Gemini Pro</option>
+          <option value="gemini-2.0-flash">⚡ Gemini 2.0 Flash (Latest)</option>
         </select>
       </div>
     </div>
