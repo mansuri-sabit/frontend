@@ -599,101 +599,182 @@ const UploadProject = ({ onProjectCreated }) => {
             </div>
           )}
 
-          {/* Step 3: Configuration */}
-          {currentStep === 3 && (
-            <div className="form-step">
-              <div className="step-header">
-                <Settings className="step-header-icon" />
-                <h3>AI Configuration</h3>
-                <p>Configure your AI chatbot settings</p>
-              </div>
-              
-              <div className="config-grid">
-                <div className="config-section">
-                  <h4>
-                    <Shield size={18} />
-                    API Configuration
-                  </h4>
-                  
-                  <div className="form-group">
-                    <label>Gemini API Key *</label>
-                    <input
-                      type="password"
-                      value={projectData.gemini_api_key}
-                      onChange={(e) => handleInputChange('gemini_api_key', e.target.value)}
-                      placeholder="Enter your Gemini API key"
-                      className="form-input"
-                      required
-                    />
-                    <small>🔒 Your API key will be encrypted and stored securely</small>
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>AI Model</label>
-                    <select
-                      value={projectData.gemini_model}
-                      onChange={(e) => handleInputChange('gemini_model', e.target.value)}
-                      className="form-select"
-                    >
-                      <option value="gemini-1.5-flash">⚡ Gemini 1.5 Flash (Recommended)</option>
-                      <option value="gemini-1.5-pro">🚀 Gemini 1.5 Pro</option>
-                      <option value="gemini-pro">💎 Gemini Pro</option>
-                    </select>
-                  </div>
-                </div>
-                
-                <div className="config-section">
-                  <h4>
-                    <Zap size={18} />
-                    Usage Limits
-                  </h4>
-                  
-                  <div className="form-group">
-                    <label>Daily Usage Limit</label>
-                    <select
-                      value={projectData.gemini_daily_limit}
-                      onChange={(e) => handleInputChange('gemini_daily_limit', parseInt(e.target.value))}
-                      className="form-select"
-                    >
-                      <option value={100}>100 requests/day</option>
-                      <option value={500}>500 requests/day</option>
-                      <option value={1000}>1000 requests/day</option>
-                      <option value={2000}>2000 requests/day</option>
-                      <option value={5000}>5000 requests/day</option>
-                    </select>
-                  </div>
-                  
-                  <div className="form-group">
-                    <label>Monthly Usage Limit</label>
-                    <select
-                      value={projectData.gemini_monthly_limit}
-                      onChange={(e) => handleInputChange('gemini_monthly_limit', parseInt(e.target.value))}
-                      className="form-select"
-                    >
-                      <option value={3000}>3000 requests/month</option>
-                      <option value={15000}>15000 requests/month</option>
-                      <option value={30000}>30000 requests/month</option>
-                      <option value={60000}>60000 requests/month</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="form-group full-width">
-                <label>
-                  <Sparkles size={16} />
-                  Welcome Message
-                </label>
-                <textarea
-                  value={projectData.welcome_message}
-                  onChange={(e) => handleInputChange('welcome_message', e.target.value)}
-                  placeholder="Enter a welcome message for your chatbot..."
-                  rows={3}
-                  className="form-textarea"
-                />
-              </div>
+// Add to UploadProject.js - Step 3 Configuration section
+{currentStep === 3 && (
+  <div className="form-step">
+    <div className="step-header">
+      <Settings className="step-header-icon" />
+      <h3>AI Configuration</h3>
+      <p>Configure your AI chatbot settings</p>
+    </div>
+    
+    {/* AI Provider Selection */}
+    <div className="config-section">
+      <h4>
+        <Zap size={18} />
+        AI Provider Selection
+      </h4>
+      
+      <div className="provider-selection">
+        <div className="provider-option">
+          <input
+            type="radio"
+            id="gemini"
+            name="ai_provider"
+            value="gemini"
+            checked={projectData.ai_provider === 'gemini'}
+            onChange={(e) => handleInputChange('ai_provider', e.target.value)}
+          />
+          <label htmlFor="gemini" className="provider-label">
+            <Sparkles size={20} />
+            <div>
+              <strong>Google Gemini</strong>
+              <p>Fast and efficient AI responses</p>
             </div>
-          )}
+          </label>
+        </div>
+        
+        <div className="provider-option">
+          <input
+            type="radio"
+            id="openai"
+            name="ai_provider"
+            value="openai"
+            checked={projectData.ai_provider === 'openai'}
+            onChange={(e) => handleInputChange('ai_provider', e.target.value)}
+          />
+          <label htmlFor="openai" className="provider-label">
+            <Zap size={20} />
+            <div>
+              <strong>OpenAI GPT-4o</strong>
+              <p>Advanced AI with superior accuracy</p>
+            </div>
+          </label>
+        </div>
+      </div>
+    </div>
+    
+    {/* Gemini Configuration */}
+    {projectData.ai_provider === 'gemini' && (
+      <div className="config-section">
+        <h4>
+          <Sparkles size={18} />
+          Gemini Configuration
+        </h4>
+        
+        <div className="form-group">
+          <label>Gemini API Key *</label>
+          <input
+            type="password"
+            value={projectData.gemini_api_key}
+            onChange={(e) => handleInputChange('gemini_api_key', e.target.value)}
+            placeholder="Enter your Gemini API key"
+            className="form-input"
+            required
+          />
+        </div>
+        
+        <div className="form-group">
+          <label>Gemini Model</label>
+          <select
+            value={projectData.gemini_model}
+            onChange={(e) => handleInputChange('gemini_model', e.target.value)}
+            className="form-select"
+          >
+            <option value="gemini-1.5-flash">⚡ Gemini 1.5 Flash (Recommended)</option>
+            <option value="gemini-1.5-pro">🚀 Gemini 1.5 Pro</option>
+            <option value="gemini-pro">💎 Gemini Pro</option>
+          </select>
+        </div>
+      </div>
+    )}
+    
+    {/* OpenAI Configuration step -3 */}
+    {projectData.ai_provider === 'openai' && (
+      <div className="config-section">
+        <h4>
+          <Zap size={18} />
+          OpenAI Configuration
+        </h4>
+        
+        <div className="form-group">
+          <label>OpenAI API Key *</label>
+          <input
+            type="password"
+            value={projectData.openai_api_key}
+            onChange={(e) => handleInputChange('openai_api_key', e.target.value)}
+            placeholder="Enter your OpenAI API key"
+            className="form-input"
+            required
+          />
+        </div>
+        
+        <div className="form-group">
+          <label>OpenAI Model</label>
+          <select
+            value={projectData.openai_model}
+            onChange={(e) => handleInputChange('openai_model', e.target.value)}
+            className="form-select"
+          >
+            <option value="gpt-4o">🚀 GPT-4o (Recommended)</option>
+            <option value="gpt-4">💎 GPT-4</option>
+            <option value="gpt-3.5-turbo">⚡ GPT-3.5 Turbo</option>
+          </select>
+        </div>
+        
+        <div className="form-group">
+          <label>Assistant ID (Optional)</label>
+          <input
+            type="text"
+            value={projectData.openai_assistant_id}
+            onChange={(e) => handleInputChange('openai_assistant_id', e.target.value)}
+            placeholder="Enter OpenAI Assistant ID (optional)"
+            className="form-input"
+          />
+          <small>🤖 Use a pre-configured OpenAI Assistant for specialized responses</small>
+        </div>
+      </div>
+    )}
+    
+    {/* Subscription Configuration */}
+    <div className="config-section">
+      <h4>
+        <Clock size={18} />
+        Subscription & Limits
+      </h4>
+      
+      <div className="form-group">
+        <label>Monthly Token Limit</label>
+        <select
+          value={projectData.monthly_token_limit}
+          onChange={(e) => handleInputChange('monthly_token_limit', parseInt(e.target.value))}
+          className="form-select"
+        >
+          <option value={50000}>50,000 tokens/month</option>
+          <option value={100000}>100,000 tokens/month</option>
+          <option value={250000}>250,000 tokens/month</option>
+          <option value={500000}>500,000 tokens/month</option>
+          <option value={1000000}>1,000,000 tokens/month</option>
+        </select>
+      </div>
+      
+      <div className="form-group">
+        <label>Subscription Duration</label>
+        <select
+          value={projectData.subscription_duration}
+          onChange={(e) => handleInputChange('subscription_duration', parseInt(e.target.value))}
+          className="form-select"
+        >
+          <option value={30}>1 Month</option>
+          <option value={90}>3 Months</option>
+          <option value={180}>6 Months</option>
+          <option value={365}>1 Year</option>
+        </select>
+      </div>
+    </div>
+  </div>
+)}
+
 
           {/* Step 4: Review */}
           {currentStep === 4 && (
