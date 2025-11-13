@@ -1,0 +1,34 @@
+# Render.com deployment configuration for Frontend
+# This file configures your static site deployment on Render
+# Note: For static sites, Render may not fully support render.yaml
+# You can configure most settings in the Render dashboard instead
+
+services:
+  - type: static
+    name: chatbot-frontend
+    # Static Site Configuration
+    staticPublishPath: ./dist
+    
+    # Build Command
+    buildCommand: npm ci && npm run build
+    
+    # Environment Variables
+    # These can also be set in the Render dashboard under Settings → Environment Variables
+    envVars:
+      - key: VITE_API_URL
+        value: https://backendoffice.onrender.com
+      # Optional: Add other environment variables here
+      # - key: VITE_WEBSOCKET_URL
+      #   value: wss://backendoffice.onrender.com
+      # - key: VITE_API_TIMEOUT
+      #   value: 600000
+    
+    # Build Environment
+    env:
+      - key: NODE_VERSION
+        value: 20
+    
+    # Note: For static sites, SPA routing and headers are typically configured
+    # in the Render dashboard under Settings → Headers & Redirects
+    # Add a rewrite rule: /* → /index.html (200)
+

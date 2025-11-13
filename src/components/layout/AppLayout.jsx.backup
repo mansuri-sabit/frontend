@@ -1,0 +1,451 @@
+import React, { useState, useEffect } from 'react';
+import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
+import { useAuthStore } from '../../store/authStore';
+import { useAppStore } from '../../store';
+import { apiClient } from '../../lib/api';
+import { Avatar } from '../ui/Avatar';
+import { Dropdown } from '../ui/Dropdown';
+import ChatHistory from '../../features/client/pages/ChatHistory';
+
+
+export const AppLayout = ({ children }) => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuthStore();
+  const { sidebarCollapsed, toggleSidebar } = useAppStore();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [clientPermissions, setClientPermissions] = useState([]);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+
+  // close mobile drawer on route change
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
+
+  // Load client permissions when user is a client
+  useEffect(() => {
+    const loadClientPermissions = async () => {
+      if (user?.role === 'client') {
+        // For client users, use client_id to fetch permissions
+        const clientId = user?.client_id || user?.id || user?._id;
+        if (import.meta.env.DEV) {
+          console.log('Loading permissions for client:', clientId, 'User:', user);
+        }
+        if (clientId) {
+          try {
+            // Use client-side endpoint for client users (they can't access admin endpoints)
+            const response = await apiClient.getClientSidePermissions();
+            const permissions = response?.permissions || [];
+            if (import.meta.env.DEV) {
+              console.log('Permissions response:', response);
+              console.log('Setting permissions:', permissions);
+            }
+            setClientPermissions(permissions);
+          } catch (error) {
+            console.error('Failed to load client permissions:', error);
+            // If API fails, show empty permissions (only dashboard)
+            // Don't default to all enabled - let admin control this
+            setClientPermissions([]);
+          } finally {
+            setPermissionsLoaded(true);
+          }
+        } else {
+          console.warn('No client ID found for client user');
+          // If no client ID, show empty permissions (only dashboard)
+          setClientPermissions([]);
+          setPermissionsLoaded(true);
+        }
+      } else {
+        setPermissionsLoaded(true);
+      }
+    };
+
+    if (user) {
+      loadClientPermissions();
+    }
+  }, [user?.role, user?.client_id, user?.id, user?._id]);
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  // Role-aware dashboard link
+  const dashHref = user?.role === 'admin' ? '/admin/dashboard' : '/client/dashboard';
+
+  // Build sidebar items
+  const getNavigationItems = () => {
+    const baseItems = [
+      {
+        name: 'Dashboard',
+        href: dashHref,
+        icon: (
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
+          </svg>
+        ),
+        exact: true,
+      },
+    ];
+
+    if (user?.role === 'admin') {
+      return [
+        ...baseItems,
+        {
+          name: 'Clients',
+          href: '/admin',
+          exact: true,
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+          ),
+        },
+        {
+          name: 'Create Client',
+          href: '/admin/clients/new',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+            </svg>
+          ),
+        },
+        {
+          name: 'Usage Analytics',
+          href: '/admin/usage',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+            </svg>
+          ),
+        },
+        {
+          name: 'Client Access',
+          href: '/admin/client-access',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            </svg>
+          ),
+        },
+      ];
+    }
+
+    if (user?.role === 'client') {
+      const allClientItems = [
+        {
+          name: 'Branding',
+          href: '/client/branding',
+          permissionKey: 'branding',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zM21 5a2 2 0 00-2-2h-4a2 2 0 00-2 2v12a4 4 0 004 4h4a2 2 0 002-2V5z" />
+            </svg>
+          ),
+        },
+        {
+          name: 'Documents',
+          href: '/client/documents',
+          permissionKey: 'documents',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          ),
+        },
+        {
+          name: 'Email Template',
+          href: '/client/email-templates',
+          permissionKey: 'email-templates',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg>
+          ),
+        },
+        {
+          name: 'Chat',
+          href: '/client/chat',
+          permissionKey: 'chat',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+          ),
+        },
+        {
+          name: 'Token Usage',
+          href: '/client/tokens',
+          permissionKey: 'tokens',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          ),
+        },
+        {
+          name: 'Analytics',
+          href: '/client/analytics',
+          permissionKey: 'analytics',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 8v8m-4-5v5m-4-2v2m-2 4h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+          ),
+        },
+        {
+          name: 'Chat History',
+          href: '/client/chat-history',
+          permissionKey: 'chat-history',
+          icon: (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+          ),
+        },
+      ];
+
+      // Filter items based on permissions
+      // If permissions are not loaded yet, show only dashboard (don't show all items)
+      if (!permissionsLoaded) {
+        if (import.meta.env.DEV) {
+          console.log('Permissions not loaded yet, showing only dashboard');
+        }
+        return baseItems;
+      }
+
+      // If permissions are loaded and empty, show only dashboard
+      if (clientPermissions.length === 0) {
+        if (import.meta.env.DEV) {
+          console.log('No permissions found, showing only dashboard');
+        }
+        return baseItems;
+      }
+
+      // Filter items based on permissions
+      if (import.meta.env.DEV) {
+        console.log('Filtering items with permissions:', clientPermissions);
+      }
+      const filteredItems = allClientItems.filter((item) => {
+        const hasPermission = clientPermissions.includes(item.permissionKey);
+        if (import.meta.env.DEV) {
+          console.log(`Item ${item.name} (${item.permissionKey}): ${hasPermission ? 'SHOW' : 'HIDE'}`);
+        }
+        return hasPermission;
+      });
+
+      if (import.meta.env.DEV) {
+        console.log('Filtered items:', filteredItems.map(i => i.name));
+      }
+      return [...baseItems, ...filteredItems];
+    }
+
+    return baseItems;
+  };
+
+  const navigationItems = getNavigationItems();
+
+  // exact/startsWith matcher that respects item.exact
+  const isActiveRoute = (item) => {
+    if (item.exact) return location.pathname === item.href;
+    return (
+      location.pathname === item.href ||
+      location.pathname.startsWith(item.href.endsWith('/') ? item.href : item.href + '/')
+    );
+  };
+
+  const activeTitle =
+    navigationItems.find((it) => isActiveRoute(it))?.name || 'Dashboard';
+
+  const userMenuItems = [
+    {
+      label: 'Profile',
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+      ),
+      onClick: () => navigate('/profile'),
+    },
+    {
+      label: 'Settings',
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      ),
+      onClick: () => navigate('/settings'),
+    },
+    { type: 'divider' },
+    {
+      label: 'Sign out',
+      icon: (
+        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+        </svg>
+      ),
+      onClick: handleLogout,
+      className: 'text-red-600 hover:text-red-700',
+    },
+  ];
+
+  // compute responsive sizes once, reuse everywhere
+  const lgSidebarWidth = sidebarCollapsed ? 'lg:w-16' : 'lg:w-64';
+  const lgContentMargin = sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-64';
+
+  return (
+    <div className="min-h-screen bg-gray-50 ">
+      {/* Mobile overlay */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-gray-600/60 z-40 lg:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Sidebar (always fixed, avoids header gap) */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-64 ${lgSidebarWidth}
+          bg-white shadow-lg
+          transform transition-transform duration-200 ease-in-out
+          ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}
+          lg:translate-x-0`}
+      >
+        {/* Logo / toggle */}
+        <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
+          {!sidebarCollapsed && (
+            <div className="flex items-center">
+              <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-sm">SC</span>
+              </div>
+              <span className="ml-2 text-xl font-semibold text-gray-900">
+                SaaS Chat
+              </span>
+            </div>
+          )}
+          <button
+            onClick={toggleSidebar}
+            className="p-1 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 lg:block hidden"
+            aria-label="Toggle sidebar"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Nav (scrollable) */}
+        <div className="h-[calc(100%-4rem)] flex flex-col overflow-y-auto">
+          <nav className="mt-6 px-2 space-y-1">
+            {navigationItems.map((item) => (
+              <Link
+                key={item.name}
+                to={item.href}
+                className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md transition-colors
+                  ${isActiveRoute(item)
+                    ? 'bg-primary-100 text-primary-900'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
+                title={sidebarCollapsed ? item.name : undefined}
+              >
+                <div
+                  className={`mr-3 ${
+                    isActiveRoute(item)
+                      ? 'text-primary-500'
+                      : 'text-gray-400 group-hover:text-gray-500'
+                  }`}
+                >
+                  {item.icon}
+                </div>
+                {!sidebarCollapsed && <span className="truncate">{item.name}</span>}
+              </Link>
+            ))}
+          </nav>
+
+          {/* User summary (sticky bottom) */}
+          {!sidebarCollapsed && (
+            <div className="mt-auto p-4 border-t border-gray-200">
+              <div className="flex items-center">
+                <Avatar 
+                  key={`sidebar-avatar-${user?.avatar_url || user?.avatar || 'default'}`}
+                  size="sm" 
+                  name={user?.name || user?.username} 
+                  src={user?.avatar_url || user?.avatar}
+                  className="mr-3" 
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {user?.name || user?.username}
+                  </p>
+                  <p className="text-xs text-gray-500 capitalize">
+                    {user?.role}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </aside>
+
+      {/* Main */}
+      <div className={`${lgContentMargin} transition-[margin] duration-200 `}>
+        {/* Top bar */}
+        <header className="sticky top-0 z-40 bg-white shadow-sm border-b border-gray-200">
+          <div className="flex justify-between items-center px-4 sm:px-6 lg:px-8 h-16">
+            <div className="flex items-center">
+              <button
+                type="button"
+                className="p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 lg:hidden"
+                onClick={() => setIsMobileMenuOpen(true)}
+                aria-label="Open sidebar"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+
+              <h1 className="ml-2 text-lg font-semibold text-gray-900 lg:ml-0">
+                {activeTitle}
+              </h1>
+            </div>
+
+            <div className="flex items-center space-x-4">
+              <button
+                className="p-2 text-gray-400 hover:text-gray-500 hover:bg-gray-100 rounded-md"
+                aria-label="Quick action"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-5 5v-5zM10.586 17l4.707-4.707c.188-.188.293-.442.293-.707V6a2 2 0 012-2h4a2 2 0 012 2v5.586c0 .265-.105 .519-.293 .707L18.586 17H10.586zM4 19l2-8 8 2-2 8-8-2z" />
+                </svg>
+              </button>
+
+              <Dropdown
+                trigger={
+                  <button className="flex items-center p-1.5 rounded-full hover:bg-gray-100">
+                    <Avatar 
+                      key={`header-avatar-${user?.avatar_url || user?.avatar || 'default'}`}
+                      size="sm" 
+                      name={user?.name || user?.username}
+                      src={user?.avatar_url || user?.avatar}
+                    />
+                  </button>
+                }
+                items={userMenuItems}
+                placement="bottom-end"
+              />
+            </div>
+          </div>
+        </header>
+
+        {/* Content */}
+        <main id="main-content" className="py-6">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            {children ?? <Outlet />}
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+};
+
+export default AppLayout;

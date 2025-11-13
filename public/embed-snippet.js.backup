@@ -1,0 +1,289 @@
+(function () {
+  'use strict';
+
+  // ---- helpers ------------------------------------------------------------
+  function $(sel) { return document.querySelector(sel); }
+  function toQS(obj) {
+    const parts = [];
+    Object.keys(obj || {}).forEach(k => {
+      const v = obj[k];
+      if (v !== undefined && v !== null && v !== '') {
+        parts.push(encodeURIComponent(k) + '=' + encodeURIComponent(String(v)));
+      }
+    });
+    return parts.length ? '?' + parts.join('&') : '';
+  }
+  function getCurrentScript() {
+    return document.currentScript ||
+           (function () {
+             const scripts = document.getElementsByTagName('script');
+             return scripts[scripts.length - 1];
+           })();
+  }
+  function parseBool(v, def = false) {
+    if (v == null) return def;
+    if (typeof v === 'boolean') return v;
+    const s = String(v).toLowerCase().trim();
+    return s === '1' || s === 'true' || s === 'yes';
+  }
+  function parsePosition(v) {
+    if (!v) return { bottom: '20px', right: '20px' };
+    try {
+      if (v.trim().startsWith('{')) return JSON.parse(v);
+    } catch {}
+    const p = String(v).toLowerCase();
+    const map = {
+      'bottom-right': { bottom: '20px', right: '20px' },
+      'bottom-left':  { bottom: '20px', left: '20px' },
+      'top-right':    { top: '20px', right: '20px' },
+      'top-left':     { top: '20px', left: '20px' }
+    };
+    return map[p] || { bottom: '20px', right: '20px' };
+  }
+
+  // ✅ NEW: Helper to create gradient from single color
+  function hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '');
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : { r: 102, g: 126, b: 234 };
+  }
+
+  function createGradient(color) {
+    const { r, g, b } = hexToRgb(color);
+    // Create lighter version (20% lighter)
+    const r2 = Math.min(255, Math.round(r + (255 - r) * 0.2));
+    const g2 = Math.min(255, Math.round(g + (255 - g) * 0.2));
+    const b2 = Math.min(255, Math.round(b + (255 - b) * 0.2));
+    // Create darker version (15% darker)
+    const r3 = Math.round(r * 0.85);
+    const g3 = Math.round(g * 0.85);
+    const b3 = Math.round(b * 0.85);
+    
+    return `linear-gradient(135deg, rgb(${r2}, ${g2}, ${b2}) 0%, ${color} 50%, rgb(${r3}, ${g3}, ${b3}) 100%)`;
+  }
+
+  // ---- read attributes ----------------------------------------------------
+  const script = getCurrentScript();
+  if (!script) return;
+
+  const ATTR = (name, fallback = null) => script.getAttribute(name) ?? fallback;
+
+  // Only require client-id, all other attributes have sensible defaults
+  const clientId    = ATTR('data-chatbot-client-id') || ATTR('data-client-id');
+  const baseUrlAttr = ATTR('data-base-url');
+  const secret      = ATTR('data-secret');
+  const theme       = ATTR('data-theme', 'light');
+  const themeColor  = ATTR('data-theme-color', '#3B82F6');
+  const position    = parsePosition(ATTR('data-position', 'bottom-right'));
+  const widthAttr   = ATTR('data-width', '360px');
+  const heightAttr  = ATTR('data-height', '520px');
+  const autoOpen    = parseBool(ATTR('data-auto-open', 'false'));
+  const greetDelay  = parseInt(ATTR('data-greeting-delay', '300'), 10);
+  const showPowered = parseBool(ATTR('data-show-powered-by', 'true'));
+
+  const version     = Date.now();
+
+  const showLogo      = parseBool(ATTR('data-show-logo', 'true'));
+  const showWelcome   = parseBool(ATTR('data-show-welcome', 'true'));
+  const showQuestions = parseBool(ATTR('data-show-questions', 'true'));
+
+  if (!clientId) {
+    console.error('[SaaS Chatbot] data-chatbot-client-id is required.');
+    return;
+  }
+
+  const scriptSrc = script.src ? new URL(script.src, window.location.href) : null;
+  const APP_BASE  = baseUrlAttr || (scriptSrc ? (scriptSrc.origin) : window.location.origin);
+  const APP_ORIGIN = new URL(APP_BASE).origin;
+
+  // ---- container ----------------------------------------------------------
+  const container = document.createElement('div');
+  container.id = 'saas-chatbot-widget';
+  Object.assign(container.style, {
+    position: 'fixed',
+    zIndex: 2147483647,
+    width: widthAttr,
+    height: heightAttr,
+    boxShadow: '0 10px 25px rgba(0,0,0,.12)',
+    borderRadius: '12px',
+    overflow: 'hidden',
+    fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif",
+    transition: 'transform .22s ease, opacity .22s ease',
+    transform: 'scale(.96)',
+    opacity: '0',
+    pointerEvents: 'none',
+    background: 'transparent',
+    display: 'flex',
+    flexDirection: 'column',
+    border: 'none'
+  });
+  Object.keys(position).forEach(k => (container.style[k] = position[k]));
+
+  function applyResponsive() {
+    const isSmall = Math.min(window.innerWidth, window.innerHeight) < 500;
+    if (isSmall) {
+      container.style.width = '92vw';
+      container.style.height = '70vh';
+    } else {
+      container.style.width = widthAttr;
+      container.style.height = heightAttr;
+    }
+  }
+  applyResponsive();
+  window.addEventListener('resize', applyResponsive);
+
+  // ---- iframe -------------------------------------------------------------
+  const iframe = document.createElement('iframe');
+  const qs = toQS({
+    theme,
+    color: themeColor || undefined,
+    v: version,
+    secret: secret || undefined,
+    powered: showPowered ? 1 : 0,
+    show_logo: showLogo ? 1 : 0,
+    show_welcome: showWelcome ? 1 : 0,
+    show_questions: showQuestions ? 1 : 0
+  });
+  iframe.src = APP_BASE.replace(/\/+$/, '') + '/embed/chatframe/' + encodeURIComponent(clientId) + qs;
+  Object.assign(iframe.style, {
+    width: '100%',
+    height: '100%',
+    border: '0',
+    borderRadius: '12px',
+    background: 'transparent'
+  });
+  iframe.setAttribute('title', 'SaaS Chatbot Widget');
+  iframe.setAttribute('allow', 'clipboard-write;');
+  container.appendChild(iframe);
+
+  // ---- launcher button ✅ FIXED WITH DYNAMIC GRADIENT --------------------
+  const launcher = document.createElement('button');
+  launcher.id = 'saas-chatbot-launcher';
+  launcher.setAttribute('aria-label', 'Open chat support');
+  
+  // ✅ Calculate dynamic gradient background
+  const launcherBackground = themeColor
+    ? createGradient(themeColor) // ✅ Use gradient generator
+    : 'linear-gradient(135deg,#667eea 0%,#764ba2 100%)';
+
+  Object.assign(launcher.style, {
+    position: 'fixed',
+    zIndex: 2147483647,
+    width: '56px',
+    height: '56px',
+    borderRadius: '9999px',
+    border: '0',
+    cursor: 'pointer',
+    background: launcherBackground, // ✅ Dynamic gradient applied
+    color: '#fff',
+    boxShadow: '0 8px 22px rgba(0,0,0,.18)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'transform .18s ease, box-shadow .18s ease',
+    fontSize: '24px'
+  });
+  Object.keys(position).forEach(k => (launcher.style[k] = position[k]));
+  launcher.innerHTML =
+    '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" ' +
+    'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>';
+
+  launcher.addEventListener('mouseenter', () => {
+    launcher.style.transform = 'scale(1.06)';
+    launcher.style.boxShadow = '0 10px 28px rgba(0,0,0,.22)';
+  });
+  launcher.addEventListener('mouseleave', () => {
+    launcher.style.transform = 'scale(1)';
+    launcher.style.boxShadow = '0 8px 22px rgba(0,0,0,.18)';
+  });
+
+  let isOpen = false;
+  function open() {
+    if (isOpen) return;
+    isOpen = true;
+    container.style.pointerEvents = 'auto';
+    container.style.opacity = '1';
+    container.style.transform = 'scale(1)';
+    launcher.innerHTML =
+      '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" ' +
+      'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+      '<line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+    launcher.setAttribute('aria-label', 'Close chat support');
+    setTimeout(() => { try { iframe.contentWindow && iframe.contentWindow.focus(); } catch (_) {} }, 250);
+    postToFrame('widget-toggled', { open: true });
+  }
+  function close() {
+    if (!isOpen) return;
+    isOpen = false;
+    container.style.pointerEvents = 'none';
+    container.style.opacity = '0';
+    container.style.transform = 'scale(.96)';
+    launcher.innerHTML =
+      '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" ' +
+      'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+      '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>';
+    launcher.setAttribute('aria-label', 'Open chat support');
+    postToFrame('widget-toggled', { open: false });
+  }
+  function toggle() { isOpen ? close() : open(); }
+
+  launcher.addEventListener('click', toggle);
+  launcher.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); }
+  });
+
+  function postToFrame(action, data) {
+    try {
+      iframe.contentWindow.postMessage(
+        { type: 'saas-chatbot-parent', action, data },
+        APP_ORIGIN
+      );
+    } catch (_) {}
+  }
+
+  window.addEventListener('message', (ev) => {
+    if (ev.origin !== APP_ORIGIN) return;
+    const msg = ev.data || {};
+    if (msg.type !== 'saas-chatbot-embed') return;
+
+    switch (msg.action) {
+      case 'widget-initialized':
+        if (autoOpen) setTimeout(open, Math.max(0, isNaN(greetDelay) ? 300 : greetDelay));
+        break;
+      case 'close': close(); break;
+      case 'open': open(); break;
+      case 'resize':
+        const h = Math.min(Math.max(msg.height || 0, 300), 700);
+        container.style.height = h + 'px';
+        break;
+      case 'message-sent':
+        if (window.gtag) {
+          window.gtag('event', 'chat_message_sent', {
+            client_id: clientId,
+            session_id: (msg.data && msg.data.session_id) || undefined
+          });
+        }
+        break;
+      case 'widget-error':
+        console.error('[SaaS Chatbot]', msg.data && msg.data.error);
+        break;
+    }
+  });
+
+  document.body.appendChild(container);
+  document.body.appendChild(launcher);
+
+  window.SaasChatbotWidget = {
+    version,
+    clientId,
+    open, close, toggle,
+    isOpen: () => isOpen,
+    sendMessage: (message) => {
+      postToFrame('send-message', { message });
+    }
+  };
+})();

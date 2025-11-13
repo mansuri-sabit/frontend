@@ -1,0 +1,237 @@
+/* src/styles/globals.css */
+
+@import "tailwindcss";
+
+/* Dark mode (class strategy) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Theme tokens (replaces tailwind.config.js -> theme.extend.colors) */
+@theme {
+  /* Light Mode - Standard Blue Brand Color */
+  --color-brand: #3B82F6;
+
+  /* primary scale - Standard Blue (Light Mode) */
+  --color-primary-50:  #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #1e3a8a;
+
+  /* animations (v4 supports tokenizing keyframes) */
+  --animate-fade-in: fadeIn 0.5s ease-in-out;
+  --animate-slide-up: slideUp 0.3s ease-out;
+  --animate-pulse-slow: pulse 2s cubic-bezier(0.4,0,0.6,1) infinite;
+}
+
+/* Keyframes */
+@keyframes fadeIn { from {opacity:0} to {opacity:1} }
+@keyframes slideUp { from {transform:translateY(10px);opacity:0} to {transform:translateY(0);opacity:1} }
+
+/* Utilities you had */
+.loading-dots { display:inline-flex; gap:0.25rem }
+.loading-dots > div { width:0.5rem; height:0.5rem; background:currentColor; border-radius:9999px; animation:pulse 2s cubic-bezier(0.4,0,0.6,1) infinite; }
+.loading-dots > div:nth-child(1){ animation-delay:0s }
+  .loading-dots > div:nth-child(2){ animation-delay:.2s }
+  .loading-dots > div:nth-child(3){ animation-delay:.4s }
+
+/* Custom scrollbar styles for horizontal table scrolling */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.3) transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+  border-radius: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.3);
+  border-radius: 4px;
+  transition: background-color 0.3s ease;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(156, 163, 175, 0.5);
+}
+
+.scrollbar-thin::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Hide scrollbar utility */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
+}
+
+/* Smooth horizontal scrolling animation */
+.overflow-x-auto {
+  scroll-behavior: smooth;
+  transition: scroll-behavior 0.3s ease;
+}
+
+/* Table row hover effects */
+.table-row-hover {
+  transition: all 0.2s ease-in-out;
+}
+
+.table-row-hover:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Sticky column shadows - removed as requested */
+
+/* TanStack Query Devtools - Visible in development */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+:root {
+  --radius: 0.65rem;
+  /* Light Mode - Standard Colors (Not Red) */
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 84% 4.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 84% 4.9%;
+  --primary: 222.2 47.4% 11.2%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 222.2 47.4% 11.2%;
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  --accent: 210 40% 96.1%;
+  --accent-foreground: 222.2 47.4% 11.2%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 222.2 84% 4.9%;
+  --chart-1: 12 76% 61%;
+  --chart-2: 173 58% 39%;
+  --chart-3: 197 37% 24%;
+  --chart-4: 43 74% 66%;
+  --chart-5: 27 87% 67%;
+  /* Light Mode - Sidebar uses standard colors with solid background */
+  --sidebar: 0 0% 100%;
+  --sidebar-foreground: 222.2 84% 4.9%;
+  --sidebar-primary: 222.2 47.4% 11.2%;
+  --sidebar-primary-foreground: 210 40% 98%;
+  --sidebar-accent: 210 40% 96.1%;
+  --sidebar-accent-foreground: 222.2 47.4% 11.2%;
+  --sidebar-border: 214.3 31.8% 91.4%;
+  --sidebar-ring: 222.2 84% 4.9%;
+}
+
+/* Dark theme overrides - Red Theme (Only in Dark Mode) - Must come after :root */
+:root.dark,
+.dark {
+  --background: oklch(0.12 0.03 25);
+  --foreground: oklch(0.95 0.02 25);
+  --card: oklch(0.14 0.03 25);
+  --card-foreground: oklch(0.98 0.02 25);
+  --popover: oklch(0.14 0.03 25);
+  --popover-foreground: oklch(0.98 0.02 25);
+  --primary: oklch(0.58 0.25 27.32);
+  --primary-foreground: oklch(0.98 0.02 25);
+  --secondary: oklch(0.22 0.04 25);
+  --secondary-foreground: oklch(0.95 0.02 25);
+  --muted: oklch(0.18 0.03 25);
+  --muted-foreground: oklch(0.75 0.02 25);
+  --accent: oklch(0.45 0.22 27.32);
+  --accent-foreground: oklch(0.98 0.02 25);
+  --destructive: oklch(0.45 0.25 27.32);
+  --destructive-foreground: oklch(0.98 0.02 25);
+  --border: oklch(0.22 0.04 25);
+  --input: oklch(0.22 0.04 25);
+  --ring: oklch(0.58 0.25 27.32);
+  /* Sidebar variables */
+  --sidebar: oklch(0.14 0.03 25);
+  --sidebar-foreground: oklch(0.98 0.02 25);
+  --sidebar-primary: oklch(0.58 0.25 27.32);
+  --sidebar-primary-foreground: oklch(0.98 0.02 25);
+  --sidebar-accent: oklch(0.22 0.04 25);
+  --sidebar-accent-foreground: oklch(0.98 0.02 25);
+  --sidebar-border: oklch(0.22 0.04 25);
+  --sidebar-ring: oklch(0.58 0.25 27.32);
+  /* Chart variables */
+  --chart-1: oklch(0.58 0.25 27.32);
+  --chart-2: oklch(0.45 0.22 27.32);
+  --chart-3: oklch(0.65 0.20 27.32);
+  --chart-4: oklch(0.50 0.18 27.32);
+  --chart-5: oklch(0.40 0.15 27.32);
+  /* Brand and primary scale for compatibility */
+  --color-brand: oklch(0.58 0.25 27.32);
+  --color-primary-50:  oklch(0.25 0.12 27.32);
+  --color-primary-100: oklch(0.35 0.15 27.32);
+  --color-primary-200: oklch(0.44 0.18 27.32);
+  --color-primary-300: oklch(0.50 0.20 27.32);
+  --color-primary-400: oklch(0.55 0.23 27.32);
+  --color-primary-500: oklch(0.58 0.25 27.32);
+  --color-primary-600: oklch(0.65 0.22 27.32);
+  --color-primary-700: oklch(0.70 0.20 27.32);
+  --color-primary-800: oklch(0.75 0.18 27.32);
+  --color-primary-900: oklch(0.80 0.15 27.32);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+ 
